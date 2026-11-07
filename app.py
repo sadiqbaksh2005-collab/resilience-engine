@@ -94,6 +94,36 @@ def set_preset(values):
         st.session_state[k] = v
 
 
+LIMITS = dict(inc_pct=(0, 150), ei_months=(0, 24), income_after_pct=(0, 100), bills_pct=(0, 100),
+              spending_pct=(0, 50), loan_pct=(0, 100), one_off_S=(0.0, 6.0))
+
+
+def read_card():
+    from twist import parse
+    text = st.session_state.get("twist_text", "")
+    params, understood, unread = parse(text)
+    notes = list(understood)
+    if "one_off_months_I" in params:                       # needs this customer's income
+        k = params.pop("one_off_months_I")
+        I = load_profile(st.session_state["acc"])["I"]
+        params["one_off"] = params.get("one_off", 0) + k * I
+        notes.append(f"= ${k * I:,.0f} for this customer")
+    for key, (lo, hi) in LIMITS.items():
+        if key in params and not lo <= params[key] <= hi:
+            notes.append(f"{key} {params[key]} is outside the slider range, set to {min(max(params[key], lo), hi)}")
+            params[key] = min(max(params[key], lo), hi)
+    for key in ("inc_pct", "ei_months", "income_after_pct", "bills_pct", "spending_pct", "loan_pct"):
+        if key in params:
+            params[key] = int(round(params[key]))
+    if "one_off_S" in params:
+        params["one_off_S"] = float(round(params["one_off_S"] * 2) / 2)
+    for key in ("income_change", "bills_abs", "extra_monthly", "one_off"):
+        if key in params:
+            params[key] = int(round(params[key]))
+    set_preset(params)
+    st.session_state["twist_notes"] = (notes, unread, bool(params))
+
+
 ids = load_ids()
 demos = load_csv("demo_accounts.csv")
 id_set = set(ids)
@@ -200,6 +230,19 @@ with st.sidebar:
     b2.button("Random account", width="stretch", on_click=pick_random)
 
     st.subheader("2 · Twist")
+    st.text_area("Read the twist card", key="twist_text", height=80,
+                 placeholder="e.g. They lose their job (EI at 55%) and their household bills go up 15%")
+    st.button("Apply twist card", on_click=read_card, width="stretch", type="primary")
+    if "twist_notes" in st.session_state:
+        notes, unread, any_hit = st.session_state["twist_notes"]
+        if any_hit:
+            st.markdown("<span style='font-size:0.85rem'>Understood as:<br>" +
+                        "<br>".join(f"&nbsp;&nbsp;{n}" for n in notes) + "</span>", unsafe_allow_html=True)
+        else:
+            st.warning("Couldn't read a twist from that text. Use the buttons or sliders below.")
+        for u in unread:
+            st.warning(f"Not understood: \"{u}\". Set it with the sliders.")
+    st.caption("Or one click:")
     for name, vals in PRESETS.items():
         st.button(name, on_click=set_preset, args=(vals,), width="stretch")
     st.button("Reset (no shock)", on_click=set_preset, args=({},), width="stretch")
@@ -207,16 +250,16 @@ with st.sidebar:
 
     changed = lambda *keys: any(st.session_state[k] != DEFAULTS[k] for k in keys)
     with st.expander("Income", expanded=changed("inc_pct", "income_change")):
-        st.slider("Income while shocked (% of usual)", 0, 150, key="inc_pct", step=5)
+        st.slider("Income while shocked (% of usual)", 0, 150, key="inc_pct", step=1)
         st.slider("For how many months (0 = indefinitely)", 0, 24, key="ei_months")
-        st.slider("Income after that (% of usual)", 0, 100, key="income_after_pct", step=5)
+        st.slider("Income after that (% of usual)", 0, 100, key="income_after_pct", step=1)
         st.number_input("Other income change ($/month, e.g. -2000)", step=100, key="income_change")
     with st.expander("Costs", expanded=changed("bills_pct", "bills_abs", "spending_pct", "extra_monthly", "loan_pct")):
-        st.slider("Household bills / rent up (%)", 0, 100, key="bills_pct", step=5)
+        st.slider("Household bills / rent up (%)", 0, 100, key="bills_pct", step=1)
         st.number_input("Household bills / rent up ($/month)", min_value=0, step=50, key="bills_abs")
         st.slider("All spending up (%, e.g. inflation)", 0, 50, key="spending_pct")
         st.number_input("New recurring cost ($/month)", min_value=0, step=50, key="extra_monthly")
-        st.slider("Loan payment up (%)", 0, 100, key="loan_pct", step=5)
+        st.slider("Loan payment up (%)", 0, 100, key="loan_pct", step=1)
     with st.expander("One off cost", expanded=changed("one_off", "one_off_S")):
         st.number_input("Surprise cost ($)", min_value=0, step=500, key="one_off")
         st.slider("Surprise cost (months of typical spending)", 0.0, 6.0, key="one_off_S", step=0.5)
