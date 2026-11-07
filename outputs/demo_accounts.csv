@@ -1,0 +1,9 @@
+story,account_id,why_it_matters,I,S,B,H,P,runway_now,layoff,furnace,layoff_bills,layoff_realistic,p_survive6_layoff,ew_risk,n_candidates
+Early warning: flagged 5 months ahead,73023,"Model flagged 5 months before the first overdraft, no false alarms before",11874,12909,2664,0,0,2.6,0.4,0.0,0.4,,,,
+Early warning while runway said safe,90939,Flagged 6 months ahead while the formula showed no shortfall,5360,4855,4258,0,0,no shortfall (120+),2.2,0.0,2.2,,,,
+"Blind spot: formula says safe, model flags",29010,"No shortfall by the formula, yet the early warning model flags them now",17415,12648,18096,2834,0,no shortfall (120+),5.9,no shortfall (120+),5.2,1.9,0.1,0.137,12.0
+Fragile middle aged borrower,56795,"High income, thin buffer, loan payment: the segment our population test found most exposed",31185,32863,24166,6590,3299,14.4,1.5,0.0,1.4,0.8,0.02,0.012,20.0
+Retiree the formula misjudges,25257,The layoff twist cuts their pension by 45%; with the pension kept they are fine,4148,4215,9933,1442,0,120.0,5.1,86.2,4.6,120.0,0.25,0.001,6.0
+Bills shock does nothing (H = 0),99667,"No bills paid from this account, so +15% bills changes nothing; EI cap shortens runway",17529,17188,10128,0,0,no shortfall (120+),1.3,0.0,1.3,0.7,0.0,0.013,259.0
+"Already in deficit, living off savings",70338,Spends more than they earn every month; the buffer is quietly running down,1233,2522,26867,0,0,20.8,14.6,18.9,14.6,14.9,0.44,0.001,17.0
+Comfortable saver,28667,Survives a layoff with no shortfall at all: the control case,2607,1331,54102,0,0,no shortfall (120+),no shortfall (120+),no shortfall (120+),no shortfall (120+),no shortfall (120+),0.92,0.0,237.0

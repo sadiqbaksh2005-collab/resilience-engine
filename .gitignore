@@ -1,0 +1,17 @@
+# competition data: never commit (download separately, see README)
+data/
+*.csv.gz
+schema_report.txt
+
+# large intermediate outputs (rebuilt by the pipeline)
+outputs/panel.pkl
+outputs/monthly_full.pkl
+outputs/asof.pkl
+outputs/scores.pkl
+outputs/mc_scores.pkl
+outputs/hmm_probs.pkl
+outputs/*.log
+
+__pycache__/
+.DS_Store
+.venv/
