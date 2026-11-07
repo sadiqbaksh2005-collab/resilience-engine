@@ -107,7 +107,8 @@ def read_card():
         k = params.pop("one_off_months_I")
         I = load_profile(st.session_state["acc"])["I"]
         params["one_off"] = params.get("one_off", 0) + k * I
-        notes.append(f"= ${k * I:,.0f} for this customer")
+        i = next((j for j, n in enumerate(notes) if "of typical income" in n), len(notes) - 1)
+        notes[i] += f" (= ${k * I:,.0f} for this customer)"
     for key, (lo, hi) in LIMITS.items():
         if key in params and not lo <= params[key] <= hi:
             notes.append(f"{key} {params[key]} is outside the slider range, set to {min(max(params[key], lo), hi)}")
