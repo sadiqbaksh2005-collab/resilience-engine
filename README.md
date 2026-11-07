@@ -8,11 +8,19 @@ For any customer: **know them** (income, bills, buffer, runway), **apply a shock
 
 ## Run the app
 
+Needs **Python 3.11 or newer** (pandas 3 requires it). The competition data is not in the repo.
+
 ```bash
+git clone https://github.com/sadiqbaksh2005-collab/resilience-engine.git
+cd resilience-engine
+python3 -m venv .venv && source .venv/bin/activate      # optional but recommended
 pip install -r requirements.txt
-# put the competition CSVs in ./data (or set RESILIENCE_DATA=/path/to/data)
+mkdir data    # copy the 9 competition CSVs into ./data
 streamlit run app.py
 ```
+
+The app looks for the CSVs in `RESILIENCE_DATA` (if set), then `./data`, then `~/Downloads/data`.
+Everything else the app needs (model, scores, demo accounts, charts) is already in `outputs/`.
 
 ## Rebuild everything from the raw data
 
