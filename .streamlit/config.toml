@@ -1,0 +1,27 @@
+[theme]
+base = "light"
+primaryColor = "#565A4B"
+backgroundColor = "#F6F1EA"
+secondaryBackgroundColor = "#ECE3D6"
+textColor = "#2E3029"
+linkColor = "#565A4B"
+font = "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+headingFont = "Georgia, 'Times New Roman', serif"
+headingFontWeights = [400, 400, 400, 500, 500, 500]
+baseRadius = "0.3rem"
+buttonRadius = "0.2rem"
+borderColor = "#DDD2C3"
+dataframeBorderColor = "#E3D9CC"
+dataframeHeaderBackgroundColor = "#EFE7DC"
+showSidebarBorder = true
+metricValueFontSize = "1.7rem"
+redColor = "#A8492F"
+orangeColor = "#B9773A"
+greenColor = "#56704A"
+blueColor = "#24699F"
+chartCategoricalColors = ["#24699F", "#C4673F", "#8C7A6B"]
+
+[theme.sidebar]
+backgroundColor = "#EAE1D4"
+secondaryBackgroundColor = "#F4EEE6"
+borderColor = "#D8CCBC"

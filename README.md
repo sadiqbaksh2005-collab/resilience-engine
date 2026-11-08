@@ -45,7 +45,8 @@ python3 charts.py            # pitch charts -> outputs/charts
 |---|---|
 | `engine.py` | Profile (I, F, S, B, H, P), shocks, judges' runway, path, survival, plans, drivers, warnings |
 | `montecarlo.py` | Block bootstrap survival simulation |
-| `app.py` | Streamlit app |
+| `app.py` | Streamlit app (theme in `.streamlit/config.toml`) |
+| `viz.py` | Native Altair charts used by the app (validated colour palette, hover tooltips) |
 | `features.py`, `baselines.py`, `early_warning.py` | Early warning model |
 | `validate_*.py`, `robustness.py`, `population.py` | Evidence |
 | `migration.py` | Financial states and migration matrix, with the Markov check that shows distress is sticky |

@@ -7,31 +7,85 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import streamlit as st
 
 import engine as E
+import viz as V
 
 OUT = Path(__file__).parent / "outputs"
 st.set_page_config(page_title="Resilience Engine", layout="wide")
 st.markdown("""<style>
-section[data-testid="stSidebar"] .stButton button {padding: 0.1rem 0.6rem; min-height: 1.9rem; font-size: 0.85rem;
+:root { --sage:#565A4B; --sage2:#6E7361; --terra:#B5715A; --sand:#F6F1EA; --card:#FBF8F3; --line:#DDD2C3;
+        --ink:#2E3029; --ink2:#6E6A60; --serif: Georgia, 'Times New Roman', serif; }
+.block-container, div[data-testid="stMainBlockContainer"] {padding-top: 3.6rem; max-width: 1280px;}
+h1, h2, h3, h4 {font-family: var(--serif) !important; letter-spacing: -0.01em; color: var(--ink);}
+/* sidebar */
+section[data-testid="stSidebar"] h1 {font-size: 1.15rem; letter-spacing: 0.28em; text-transform: uppercase; font-weight: 400;}
+section[data-testid="stSidebar"] h3 {font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase;
+  font-family: inherit !important; color: var(--sage); margin-top: 0.6rem;}
+section[data-testid="stSidebar"] .stButton button {padding: 0.1rem 0.6rem; min-height: 1.9rem; font-size: 0.82rem;
   justify-content: flex-start;}
 section[data-testid="stSidebar"] .stButton {margin-bottom: -0.55rem;}
-div[data-testid="stMetricValue"] {font-size: 1.6rem;}
+/* buttons */
+div[data-testid="stMain"] .stButton button[kind="primary"] p {letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.74rem;}
+section[data-testid="stSidebar"] .stButton button[kind="primary"] {justify-content: center;}
+/* tabs as a quiet top nav */
+div[role="tablist"] {gap: 2.2rem; border-bottom: 1px solid var(--line);}
+div[data-testid="stTab"] p {font-size: 0.74rem !important; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink2);}
+div[data-testid="stTab"][aria-selected="true"] p {color: var(--ink); font-weight: 600;}
+div[data-testid="stTab"] .react-aria-SelectionIndicator {background-color: var(--sage) !important;}
+/* cards */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stVerticalBlock"]) {background: var(--card);}
+div[data-testid="stMetric"] label p {font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink2);}
+div[data-testid="stMetricValue"] {font-family: var(--serif);}
+/* custom blocks */
+.eyebrow {font-size: 0.68rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--sage2); margin-bottom: 0.15rem;}
+.hero h1 {font-size: 2.7rem; font-weight: 400; margin: 0 0 0.2rem 0; padding: 0;}
+.hero h1 em {color: var(--terra); font-style: italic;}
+.hero .sub {color: var(--ink2); font-size: 0.95rem;}
+.kpis {display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); background: var(--card);
+  border: 1px solid var(--line); border-radius: 0.3rem; margin: 1.1rem 0 0.9rem 0;}
+.kpi {padding: 0.85rem 1.1rem; border-left: 1px solid var(--line);}
+.kpi:first-child {border-left: none;}
+.kpi .l {font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink2);}
+.kpi .v {font-family: var(--serif); font-size: 1.65rem; color: var(--ink); line-height: 1.25; margin-top: 0.2rem;}
+.kpi .n {font-size: 0.78rem; color: var(--ink2); margin-top: 0.1rem;}
+.kpi .n.bad {color: #A8492F;} .kpi .n.good {color: #56704A;}
+.verdict {font-family: var(--serif); font-size: 1.12rem; line-height: 1.5; color: var(--ink); background: #F0E8DC;
+  border-left: 3px solid var(--sage); padding: 0.75rem 1.1rem; border-radius: 0 0.3rem 0.3rem 0; margin-bottom: 1.4rem;}
+.verdict.alert {border-left-color: var(--terra);}
+.sec {margin: 1.6rem 0 0.6rem 0;}
+.sec h3 {font-size: 1.55rem; font-weight: 400; margin: 0; padding: 0;}
+.sec p {color: var(--ink2); margin: 0.15rem 0 0 0; font-size: 0.92rem;}
+.cardtitle {font-family: var(--serif); font-size: 1.12rem; color: var(--ink); margin-bottom: 0.1rem;}
+.cardsub {font-size: 0.82rem; color: var(--ink2); margin-bottom: 0.4rem;}
 </style>""", unsafe_allow_html=True)
 
-# palette (validated reference palette, light mode)
-INK, INK2, MUTED, GRID = "#0b0b0b", "#52514e", "#8a8984", "#e6e5e1"
-BLUE, ORANGE, GRAY = "#2a78d6", "#eb6834", "#b4b3ad"
-SEQ = ["#cde2fb", "#9ec5f4", "#5598e7", "#256abf"]
-plt.rcParams.update({"axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
-                     "grid.color": GRID, "axes.edgecolor": GRID, "axes.axisbelow": True,
-                     "xtick.color": INK2, "ytick.color": INK2, "axes.labelcolor": INK2, "font.size": 10})
+INK, INK2 = "#2E3029", "#6E6A60"
 
-money = lambda x: f"${x:,.0f}"
+
+def section(eyebrow, title, sub=None):
+    st.markdown(f"<div class='sec'><div class='eyebrow'>{eyebrow}</div><h3>{title}</h3>"
+                + (f"<p>{sub}</p>" if sub else "") + "</div>", unsafe_allow_html=True)
+
+
+def card_title(title, sub=None):
+    st.markdown(f"<div class='cardtitle'>{title}</div>" + (f"<div class='cardsub'>{sub}</div>" if sub else ""),
+                unsafe_allow_html=True)
+
+
+def kpi_band(items):
+    """items: (label, value, note, tone) with tone in '', 'good', 'bad'."""
+    cells = "".join(f"<div class='kpi' title='{n if n else ''}'><div class='l'>{l}</div><div class='v'>{v}</div>"
+                    f"<div class='n {t}'>{n}</div></div>" for l, v, n, t in items)
+    st.markdown(f"<div class='kpis'>{cells}</div>", unsafe_allow_html=True)
+
+
+def chart(c):
+    st.altair_chart(c, width="stretch", theme=None)
+
+
+money = lambda x: f"-${-x:,.0f}" if x < 0 else f"${x:,.0f}"
 
 
 # ---------------- cached data ----------------
@@ -148,6 +202,8 @@ ids = load_ids()
 demos = load_csv("demo_accounts.csv")
 id_set = set(ids)
 demo_map = {} if demos is None else dict(zip(demos.account_id.astype(int), demos.story))
+if "acc" not in st.session_state and st.query_params.get("acc", "").isdigit():
+    st.session_state["acc"] = int(st.query_params["acc"])
 st.session_state.setdefault("acc", 20111)
 
 
@@ -245,9 +301,9 @@ with st.sidebar:
     st.markdown(f"**Account {acc}**" + (f"  \n<span style='color:{INK2};font-size:0.85rem'>Demo: {demo_story}</span>"
                                          if demo_story else ""), unsafe_allow_html=True)
     b1, b2 = st.columns(2)
-    if b1.button("Choose account", width="stretch", type="primary"):
+    if b1.button("Choose", width="stretch", type="primary"):
         account_picker()
-    b2.button("Random account", width="stretch", on_click=pick_random)
+    b2.button("Random", width="stretch", on_click=pick_random)
 
     st.subheader("2 · Twist")
     st.text_area("Read the twist card", key="twist_text", height=80,
@@ -305,88 +361,101 @@ ew = bank.set_index("account_id").loc[acc] if bank is not None and acc in set(ba
 
 sv = run_survival(acc, astuple(shock))
 fmt_rw = lambda lab: lab if "120+" in lab else f"{lab} months"
+kpi_rw = lambda lab: "120+ months" if "120+" in lab else f"{lab} months"
 
-st.title(f"Account {acc}")
-st.markdown(f"**Twist:** {shock.describe()}  \n"
-            f"<span style='color:{INK2}'>{p['n_months']} months of history, {p['first_month']} to {p['last_month']}</span>",
-            unsafe_allow_html=True)
-top = st.columns(5)
-top[0].metric("Runway now", fmt_rw(p["runway"][1]), help="Judges' formula, no shock")
-top[1].metric("Runway after twist", fmt_rw(r_j["runway_label"]),
-              delta=None if ("120+" in r_j["runway_label"] or r_j["runway_change"] == 0) else f"{r_j['runway_change']:+.1f} months",
-              help="Judges' formula: (B - one off) / (spending after - income after)")
-top[2].metric("Realistic EI runway", fmt_rw(r_r["runway_label"]), help="EI capped at $729/week, pension kept (our extension)")
-top[3].metric("Monthly gap", money(r_j["gap"]), help="Spending after the twist minus income after the twist")
+demo_line = f" · demo: {demo_map[acc]}" if acc in demo_map else ""
+st.markdown(f"<div class='hero'><div class='eyebrow'>Resilience engine · customer profile</div>"
+            f"<h1>Account <em>{acc}</em></h1><div class='sub'>{p['n_months']} months of history, {p['first_month']} "
+            f"to {p['last_month']}{demo_line}<br>Twist: {shock.describe()}</div></div>", unsafe_allow_html=True)
+
 if ew is None:
-    ew_txt = "n/a"
+    ew_txt, ew_note, ew_tone = "n/a", "under 7 months of history", ""
 elif isinstance(ew["past_overdraft"], str):
-    ew_txt = "Overdrew before"
+    ew_txt, ew_note, ew_tone = "Overdrew before", f"first in {ew['past_overdraft']}", "bad"
+elif ew["flag"]:
+    ew_txt, ew_note, ew_tone = "Flagged", f"{ew['risk']:.1%} risk, next 3 months", "bad"
 else:
-    ew_txt = "Flagged" if ew["flag"] else "Not flagged"
-top[4].metric("Early warning", ew_txt, help="Risk of a first overdraft in the next 3 months, model validated out of sample")
-st.divider()
+    ew_txt, ew_note, ew_tone = "Not flagged", f"{ew['risk']:.2%} risk, next 3 months", "good"
+chg = r_j["runway_change"]
+kpi_band([
+    ("Runway now", kpi_rw(p["runway"][1]), "judges' formula, no shock", ""),
+    ("After the twist", kpi_rw(r_j["runway_label"]),
+     "" if ("120+" in r_j["runway_label"] or chg == 0) else f"{chg:+.1f} months", "bad" if chg < 0 else ""),
+    ("Realistic EI", kpi_rw(r_r["runway_label"]), "EI capped at $729/week, pension kept", ""),
+    ("Monthly gap", money(r_j["gap"]), "spending exceeds income" if r_j["gap"] > 0 else "income covers spending",
+     "bad" if r_j["gap"] > 0 else "good"),
+    ("Early warning", ew_txt, ew_note, ew_tone),
+])
+
+twisted = shock.describe() != "no shock"
+lab_v = r_j["runway_label"] if twisted else p["runway"][1]
+lasts = ("income covers spending, so the buffer <b>never runs down</b>" if "120+" in lab_v
+         else f"the buffer lasts <b>{fmt_rw(lab_v)}</b>")
+v1 = (f"After this twist, {lasts}" if twisted else f"On the judges' formula, {lasts}")
+safe_rw = (r_j["runway"] if twisted else p["runway"][0]) >= 12
+if ew is None:
+    v2, alert = ".", False
+elif isinstance(ew["past_overdraft"], str):
+    v2, alert = f", and they have already overdrawn (first in {ew['past_overdraft']}).", True
+elif ew["flag"]:
+    v2, alert = (f"{', yet' if safe_rw else ', and'} the early warning model flags a <b>{ew['risk']:.1%}</b> chance of a "
+                 f"first overdraft within 3 months.", True)
+else:
+    v2, alert = f", and the early warning model does not flag them ({ew['risk']:.2%}).", False
+st.markdown(f"<div class='verdict{' alert' if alert else ''}'>{v1}{v2}</div>", unsafe_allow_html=True)
 
 tab_c, tab_s, tab_v, tab_m, tab_f = st.tabs(["Customer", "Twist and plan", "Investing", "Model", "Proof"])
 tab_p, tab_b, tab_i = tab_s, tab_m, tab_f        # merged: plan under the twist, bank view under the model, calculations under findings
 
 # ---------------- customer ----------------
 with tab_c:
-    m = st.columns(7)
-    m[0].metric("Income I", money(p["I"]), help="Median of money_in")
-    m[1].metric("Fixed costs F", money(p["F"]), help="Median of household_bills + insurance + loan_payments")
-    m[2].metric("Spending S", money(p["S"]), help="Median of money_out")
-    m[3].metric("Buffer B", money(p["B"]), help="Mean avg_daily_balance, last 6 months")
-    m[4].metric("Household bills H", money(p["H"]))
-    m[5].metric("Loan payment P", money(p["P"]), help="Running at end of 2025")
-    m[6].metric("Runway now", p["runway"][1] + ("" if "120+" in p["runway"][1] else " mo"))
+    section("Know the customer", "Their numbers", "Judges' definitions, computed from this account's own history.")
+    kpi_band([("Income I", money(p["I"]), "median money in", ""),
+              ("Spending S", money(p["S"]), "median money out", ""),
+              ("Fixed costs F", money(p["F"]), "bills + insurance + loans", ""),
+              ("Buffer B", money(p["B"]), "avg daily balance, last 6 mo", ""),
+              ("Household bills H", money(p["H"]), "median", ""),
+              ("Loan payment P", money(p["P"]), "running at end of 2025", "")])
 
-    left, right = st.columns([3, 2])
+    left, right = st.columns([3, 2], gap="medium")
     with left:
-        h = p["history"].copy()
-        fig, ax = plt.subplots(figsize=(8, 3.2))
-        ax.plot(range(len(h)), h["month_end_balance"] / 1e3, color=BLUE, lw=2, label="month end balance")
-        ax.plot(range(len(h)), h["min_balance"] / 1e3, color=GRAY, lw=1.5, label="lowest balance in month")
-        ax.axhline(0, color=INK, lw=1)
-        step = max(1, len(h) // 8)
-        ax.set_xticks(range(0, len(h), step), h["month"].iloc[::step], rotation=0, fontsize=8)
-        ax.set_ylabel("$ thousands"); ax.legend(frameon=False, fontsize=9, loc="upper left")
-        ax.set_title("Balance history", loc="left", fontsize=11, color=INK)
-        st.pyplot(fig, width="stretch"); plt.close(fig)
-
-        fig, ax = plt.subplots(figsize=(8, 2.6))
-        x = np.arange(len(h))
-        ax.bar(x - 0.2, h["money_in"] / 1e3, 0.4, color=BLUE, label="money in")
-        ax.bar(x + 0.2, h["money_out"] / 1e3, 0.4, color=ORANGE, label="money out")
-        ax.set_xticks(range(0, len(h), step), h["month"].iloc[::step], fontsize=8)
-        ax.set_ylabel("$ thousands"); ax.legend(frameon=False, fontsize=9, loc="upper left")
-        ax.set_title("Money in and out each month", loc="left", fontsize=11, color=INK)
-        st.pyplot(fig, width="stretch"); plt.close(fig)
+        with st.container(border=True):
+            card_title("Balance history", "Month end balance and the lowest point inside each month. Hover for values.")
+            chart(V.balance_history(p["history"]))
+        with st.container(border=True):
+            card_title("Money in and out", "Each month's inflows and outflows.")
+            chart(V.money_in_out(p["history"]))
     with right:
-        st.markdown("#### Early warning")
-        if ew is not None:
-            if isinstance(ew["past_overdraft"], str):
-                st.warning(f"Already overdrew (first in {ew['past_overdraft']}). Risk score {ew['risk']:.1%}.")
-            elif ew["flag"]:
-                st.error(f"Flagged: {ew['risk']:.1%} chance of a first overdraft in the next 3 months "
-                         f"(alert threshold 2.9%). Why: {ew['why']}.")
+        with st.container(border=True):
+            card_title("Early warning")
+            if ew is not None:
+                if isinstance(ew["past_overdraft"], str):
+                    st.warning(f"Already overdrew (first in {ew['past_overdraft']}). Risk score {ew['risk']:.1%}.")
+                elif ew["flag"]:
+                    st.error(f"Flagged: {ew['risk']:.1%} chance of a first overdraft in the next 3 months "
+                             f"(alert threshold 2.9%). Why: {ew['why']}.")
+                else:
+                    st.success(f"Not flagged: {ew['risk']:.2%} chance of a first overdraft in the next 3 months.")
             else:
-                st.success(f"Not flagged: {ew['risk']:.2%} chance of a first overdraft in the next 3 months.")
-            st.caption("Logistic regression, validated out of sample: AUC 0.955, catches 72% of first overdrafts "
-                       "with a median 3 months warning, alerts on 2.2% of customers. No demographics used.")
-        st.markdown("#### Where the money goes")
-        dr = E.drivers(p, shock)
-        dr = dr[dr.monthly > 0]
-        st.dataframe(dr.assign(monthly=dr.monthly.map(money), share_of_spending=dr.share_of_spending.map("{:.0%}".format),
-                               runway_gain_from_20pct_cut=dr.runway_gain_from_20pct_cut.map(
-                                   lambda v: "" if pd.isna(v) else f"+{v:.1f} mo"))
-                     .rename(columns={"runway_gain_from_20pct_cut": "20% cut buys"}),
-                     hide_index=True, width="stretch")
-        st.caption("Typical month per category (medians, so they need not add up to S).")
+                st.info("Under 7 months of history, so the model does not score this account.")
+            st.caption("Validated on months it never saw: AUC 0.955, catches 72% of first overdrafts with a median "
+                       "3 months warning, alerts on 2.2% of customers. No demographics used.")
+        with st.container(border=True):
+            card_title("Where the money goes", "Typical month per category (medians, so they need not add up to S).")
+            dr = E.drivers(p, shock)
+            dr = dr[dr.monthly > 0]
+            st.dataframe(dr.assign(monthly=dr.monthly.map(money), share_of_spending=dr.share_of_spending.map("{:.0%}".format),
+                                   runway_gain_from_20pct_cut=dr.runway_gain_from_20pct_cut.map(
+                                       lambda v: "" if pd.isna(v) else f"+{v:.1f} mo"))
+                         [["category", "monthly", "share_of_spending", "runway_gain_from_20pct_cut"]]
+                         .rename(columns={"share_of_spending": "share", "runway_gain_from_20pct_cut": "20% cut buys"}),
+                         hide_index=True, width="stretch")
 
 # ---------------- shock ----------------
 with tab_s:
-    st.markdown("### What the twist does")
-    with st.expander("Show the math", expanded=True):
+    section("Apply the shock", "What the twist does", shock.describe().capitalize() + ".")
+    with st.container(border=True):
+        card_title("The judges' runway, with this account's numbers")
         st.latex(
             r"\text{runway}=\frac{B-C}{S'-I'}=\frac{%s-%s}{%s-%s}=\frac{%s}{%s}"
             % (f"{p['B']:,.0f}", f"{r_j['one_off']:,.0f}", f"{r_j['spending']:,.0f}", f"{r_j['income']:,.0f}",
@@ -394,7 +463,6 @@ with tab_s:
             + (r"\Rightarrow \textbf{%s}" % r_j["runway_label"].replace("(", "").replace(")", "")))
         st.caption(f"I′ = {money(r_j['income'])}/month, S′ = {money(r_j['spending'])}/month, "
                    f"one off C = {money(r_j['one_off'])}. Capped at 120 months; 0 if the one off cost exceeds B.")
-
     for w in E.warnings(p, judge_shock):
         st.info(w)
 
@@ -402,51 +470,39 @@ with tab_s:
     det = E.path(p, shock, T)
     f = sv["fan"]
     start = p["B"] - r_j["one_off"]
-    mm = np.r_[0, f.month]
-    q = {k: np.r_[start, f[k]] / 1e3 for k in ["p05", "p25", "p50", "p75", "p95"]}
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.fill_between(mm, q["p05"], q["p95"], color=SEQ[0], lw=0, label="90% of simulated paths")
-    ax.fill_between(mm, q["p25"], q["p75"], color=SEQ[1], lw=0, label="middle 50%")
-    ax.plot(mm, q["p50"], color=SEQ[3], lw=2, label="median simulated path")
-    ax.plot(np.r_[0, det.month], np.r_[start, det.balance] / 1e3, color=ORANGE, lw=2.5, ls="--",
-            label="straight line (median income and spending)")
-    ax.axhline(0, color=INK, lw=1)
-    if shock.ei_months and shock.income_mult != 1:
-        ax.axvline(shock.ei_months, color=MUTED, lw=1, ls=":")
-        ax.text(shock.ei_months + 0.1, ax.get_ylim()[1] * 0.9, "reduced income ends", color=INK2, fontsize=9)
-    ax.set_xlim(0, T); ax.set_xticks(range(T + 1))
-    ax.set_xlabel("Months after the shock"); ax.set_ylabel("Balance ($ thousands)")
-    ax.legend(frameon=False, fontsize=9, loc="lower left")
-    ax.set_title("What happens month by month", loc="left", fontsize=12, color=INK)
-    st.pyplot(fig, width="stretch"); plt.close(fig)
-    st.caption(f"Chance of no overdraft: {sv['p_survive_3']:.0%} at 3 months, {sv['p_survive_6']:.0%} at 6, "
-               f"{sv['p_survive_12']:.0%} at 12. 5,000 paths replaying this customer's own months; conservative, "
-               f"because real customers cut back when money gets tight.")
+    q = {k: np.r_[start, f[k]] for k in ["p05", "p25", "p50", "p75", "p95"]}
+    with st.container(border=True):
+        card_title("Month by month", f"Chance of no overdraft: {sv['p_survive_3']:.0%} at 3 months, "
+                   f"{sv['p_survive_6']:.0%} at 6, {sv['p_survive_12']:.0%} at 12. 5,000 paths replaying this customer's "
+                   "own months; conservative, because real customers cut back when money gets tight.")
+        chart(V.fan(np.r_[0, f.month], (q["p05"], q["p95"]), (q["p25"], q["p75"]), q["p50"],
+                    {"straight line (median income and spending)": (np.r_[start, det.balance], V.S2, True)},
+                    "months after the shock",
+                    marker=(shock.ei_months, "reduced income ends") if (shock.ei_months and shock.income_mult != 1) else None))
 
 # ---------------- plan ----------------
 with tab_p:
-    st.divider()
-    st.markdown("### The plan")
+    section("Make a plan", "The plan", "A backup plan if the shock hits, and a goal to be ready for the next one.")
     import portfolio as PF
     rc_plan = PF.risk_capacity(p)
     fund_m = rc_plan["cushion_months"]
     pl = E.plans(p, shock, fund_months=fund_m)
     g, b = pl["goal"], pl["backup"]
-    left, right = st.columns(2)
-    with left:
-        st.markdown("#### Goal plan: build the emergency fund")
+    left, right = st.columns(2, gap="medium")
+    with left, st.container(border=True):
+        card_title("Goal: build the emergency fund")
         st.progress(float(g["funded_pct"]), text=f"{g['funded_pct']:.0%} funded: {money(g['current'])} of {money(g['target'])}")
         st.write(g["summary"])
         st.caption(f"Target: {fund_m:g} months of spending, sized to this customer's income: 3 months if steady, 4.5 if "
                    f"somewhat irregular, 6 if irregular (income variation here {rc_plan['income_cv']:.0%}). "
                    "Once the cushion is full, the Investing tab shows the next step.")
-    with right:
-        st.markdown("#### Backup plan: if the shock hits")
+    with right, st.container(border=True):
+        card_title("Backup: if the shock hits")
         st.write(b["summary"])
         if b["options"]:
             opt = pd.DataFrame(b["options"])
             st.dataframe(opt.assign(monthly_saving=opt.monthly_saving.map(money))[["action", "monthly_saving", "runway_label"]]
-                         .rename(columns={"monthly_saving": "frees up", "runway_label": "runway (months)"}),
+                         .rename(columns={"monthly_saving": "frees up", "runway_label": "runway"}),
                          hide_index=True, width="stretch")
         st.caption(f"Baseline runway under this twist: {b['base_runway']}. All numbers from this customer's own medians.")
 
@@ -458,7 +514,7 @@ with tab_m:
         st.warning("Run early_warning.py and the risk history step first.")
     else:
         met = M["metrics"]
-        st.markdown("#### Early warning model")
+        section("Warn early", "The early warning model")
         st.markdown(
             "Predicts the chance that a customer who has **never overdrawn** has their **first overdraft in the next 3 months**. "
             "It reads the customer's own monthly pattern: buffer relative to income, spending relative to income, "
@@ -466,60 +522,31 @@ with tab_m:
             "It never uses age, gender, region, loan status or the end of data standing orders snapshot. "
             "Logistic regression, trained on months up to Sept 2023, alert threshold fixed on Oct 2023 to Sept 2024, "
             "and scored once on Oct 2024 to Sept 2025.")
-        k = st.columns(5)
-        k[0].metric("AUC, test period", "0.955", delta="+0.30 vs runway (0.65)")
-        k[1].metric("First overdrafts caught", f"{met['test_event_recall']:.0%}", help="Flagged 1 to 3 months ahead")
-        k[2].metric("Median warning", f"{met['test_median_lead']:.0f} months")
-        k[3].metric("Customers alerted", f"{met['test_alert_rate']:.1%}", help="Share of non event months flagged")
-        k[4].metric("Precision per alert", f"{met['test_precision']:.0%}", delta=f"vs {met['test_base_rate']:.1%} base rate",
-                    delta_color="off")
+        kpi_band([("AUC, test period", "0.955", "runway alone: 0.65", "good"),
+                  ("Overdrafts caught", f"{met['test_event_recall']:.0%}", "flagged 1 to 3 months ahead", ""),
+                  ("Median warning", f"{met['test_median_lead']:.0f} months", "before the first overdraft", ""),
+                  ("Customers alerted", f"{met['test_alert_rate']:.1%}", "of non event months", ""),
+                  ("Precision per alert", f"{met['test_precision']:.0%}", f"vs {met['test_base_rate']:.1%} base rate", "")])
 
         h = RH[RH.account_id == acc].sort_values("t").reset_index(drop=True)
         if h.empty:
             st.info("This account has under 7 months of history, so the model does not score it.")
         else:
             thr = M["threshold"]
-            x = np.arange(len(h))
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5.6), sharex=True, gridspec_kw=dict(height_ratios=[3, 2]))
-            n_train = int((h.period == "train").sum())
-            for ax in (ax1, ax2):
-                if n_train:
-                    ax.axvspan(-0.5, n_train - 0.5, color="#f0efec", zorder=0)
-            neg = h.min_balance < 0
-            fe = int(np.argmax(neg.to_numpy())) if neg.any() else None
-            # the model only covers customers who have never overdrawn: stop the line before the first overdraft
-            risk = h.risk.where(np.arange(len(h)) < fe) if fe is not None else h.risk
-            ax1.plot(x, risk * 100, color=BLUE, lw=2, label="model risk, next 3 months")
-            hi = (risk >= thr).to_numpy()
-            ax1.scatter(x[hi], risk[hi] * 100, color=ORANGE, s=28, zorder=3, label="flagged")
-            ax1.axhline(thr * 100, color=MUTED, ls="--", lw=1.2)
-            ax1.text(len(h) - 0.5, thr * 100, f" alert threshold {thr:.1%}", color=INK2, fontsize=8.5, va="bottom", ha="right")
-            ax1.set_yscale("log")
-            ax1.yaxis.set_major_formatter(lambda v, _: f"{v:g}%")
-            ax1.set_ylabel("Risk (log scale)")
+            top_c, bot_c, fe = V.risk_history(h, thr)
+            lead = 0
             if fe is not None:
-                for ax in (ax1, ax2):
-                    ax.axvline(fe, color="#d03b3b", lw=1.5)
-                ax1.text(fe, ax1.get_ylim()[1], " first overdraft\n (model stops here)", color="#d03b3b", fontsize=9, va="top")
-                lead = 0
                 for j in range(fe - 1, -1, -1):
                     if h.risk.iloc[j] >= thr:
                         lead += 1
                     else:
                         break
-            if n_train:
-                ax1.text(0, ax1.get_ylim()[1], " model trained on this period", color=INK2, fontsize=8.5, va="top")
-                ax1.text(n_train, ax1.get_ylim()[1], " never seen by the model", color=INK2, fontsize=8.5, va="top")
-            ax1.legend(frameon=False, fontsize=8.5, loc="center left")
-            ax1.set_title("This customer's risk, month by month", loc="left", fontsize=12, color=INK)
-            ax2.plot(x, h.runway_asof.clip(upper=120), color=GRAY, lw=2)
-            ax2.set_ylim(0, 125); ax2.set_yticks([0, 12, 60, 120], ["0", "12", "60", "120+"])
-            ax2.set_ylabel("Runway (months)")
-            ax2.set_title("Judges' runway at the time (no shock)", loc="left", fontsize=10, color=INK2)
-            step = max(1, len(h) // 10)
-            ax2.set_xticks(x[::step], h.month.iloc[::step], fontsize=8)
-            fig.tight_layout()
-            st.pyplot(fig, width="stretch"); plt.close(fig)
+            with st.container(border=True):
+                card_title("This customer's risk, month by month",
+                           "Top: the model's risk (log scale), stopped at the first overdraft. Bottom: the judges' runway "
+                           "at the same time. Shaded: the months the model was trained on.")
+                chart(top_c)
+                chart(bot_c)
             if fe is not None:
                 when = "out of sample" if h.period.iloc[fe] != "train" else "inside the training period"
                 if lead:
@@ -538,31 +565,23 @@ with tab_m:
             ups, downs = C[C > 0].tail(4), C[C < 0].head(4)
             show = pd.concat([downs, ups])
             if len(show):
-                fig, ax = plt.subplots(figsize=(10, 0.45 * len(show) + 0.8))
-                ax.barh(range(len(show)), show.values, color=[BLUE if v < 0 else ORANGE for v in show.values], height=0.6)
-                ax.set_yticks(range(len(show)), [M["nice"].get(f, f) for f in show.index], fontsize=9)
-                ax.axvline(0, color=INK, lw=1)
-                ax.set_xlabel("Effect on the risk score (log odds)")
-                ax.grid(axis="y", visible=False)
-                ax.set_title(f"What drives the latest score ({row.month.iloc[0]}): orange raises risk, blue lowers it",
-                             loc="left", fontsize=11, color=INK)
-                fig.tight_layout()
-                st.pyplot(fig, width="stretch"); plt.close(fig)
+                with st.container(border=True):
+                    card_title(f"What drives the latest score ({row.month.iloc[0]})",
+                               "Each factor's push on the risk score, from this customer's own numbers.")
+                    chart(V.drivers(show, M["nice"]))
 
 # ---------------- bank view ----------------
 with tab_b:
-    st.divider()
-    st.markdown("### Bank view: who to call this month")
+    section("For the bank", "Who to call this month", "Every customer scored at their latest month, highest risk first.")
     if bank is None:
         st.warning("Run early_warning.py first.")
     else:
         fresh = bank[bank.past_overdraft.isna()]
-        c = st.columns(4)
-        c[0].metric("Flagged today", int(bank.flag.sum()))
-        c[1].metric("…never overdrawn before", int(fresh.flag.sum()))
         blind = fresh[fresh.flag & (fresh.runway_base >= 12)]
-        c[2].metric("…of which runway says 12+ months", len(blind))
-        c[3].metric("Validated catch rate", "72%", help="Share of first overdrafts flagged 1 to 3 months ahead, test period")
+        kpi_band([("Flagged today", f"{int(bank.flag.sum())}", "customers", ""),
+                  ("Never overdrawn", f"{int(fresh.flag.sum())}", "of those flagged", ""),
+                  ("Runway says safe", f"{len(blind)}", "flagged, yet 12+ months of runway", "bad"),
+                  ("Catch rate", "72%", "first overdrafts, test period", "")])
         show_all = st.checkbox("Include customers who already overdrew", value=False)
         view = (bank if show_all else fresh)
         view = view[view.flag] if st.checkbox("Flagged only", value=True) else view
@@ -573,22 +592,54 @@ with tab_b:
 
 # ---------------- findings ----------------
 with tab_f:
-    st.markdown("### Findings")
-    for img, cap in [("1_blind_spot.png", "Runway alone misses most real overdrafts"),
-                     ("3_fragility_age.png", "Who is fragile"),
-                     ("2_warning_signal.png", "The warning signs"),
-                     ("4_borrowers.png", "Borrowers")]:
-        f = OUT / "charts" / img
-        if f.exists():
-            st.image(str(f), caption=cap, width="stretch")
+    section("Proof", "What we found", "Every number below is measured on months the models never saw.")
+    rv, mcv, seg, wsig = (load_csv(n) for n in ("runway_validation.csv", "mc_validation.csv", "population_segments.csv",
+                                                "warning_signal.csv"))
+    if rv is not None and mcv is not None:
+        rv, mcv = rv.set_index("score"), mcv.set_index("score")
+        rows = pd.DataFrame([("Runway (judges' formula)", rv.loc["runway_base"], "Judges' formula"),
+                             ("Runway under EI 55% stress", rv.loc["runway_ei55"], "Judges' formula"),
+                             ("Monte Carlo on own history", mcv.loc["mc_od_current"], "Our engine"),
+                             ("Early warning model", rv.loc["model_no_snapshot"], "Our engine")],
+                            columns=["label", "r", "kind"])
+        rows = rows.assign(auc=[r.auc for r in rows.r], lo=[r.auc_lo for r in rows.r], hi=[r.auc_hi for r in rows.r]).drop(columns="r")
+        with st.container(border=True):
+            card_title("1. Runway alone misses most real overdrafts",
+                       "79% of customers who overdrew showed 12+ months of runway three months before. How well each score "
+                       "ranks real first overdrafts (line = 95% confidence interval). Test set: 48,400 account months, 96 first overdrafts.")
+            chart(V.blind_spot(rows))
+    if wsig is not None:
+        with st.container(border=True):
+            card_title("2. The warning signs start about 6 months out",
+                       "Median of the 288 customers who overdrew, by months before the event; dashed = everyone else.")
+            w1, w2 = V.warning_signal(wsig)
+            c1, c2 = st.columns(2)
+            with c1:
+                chart(w1)
+            with c2:
+                chart(w2)
+    if seg is not None:
+        a_ = seg[seg.segment == "age_band"].set_index("group").loc[["under 25", "25 to 34", "35 to 49", "50 to 64", "65+"]]
+        allrow = seg[seg.segment == "all"].iloc[0]
+        with st.container(border=True):
+            card_title("3. The most fragile customers are middle aged, higher earners",
+                       f"Laid off on EI: share who run out within 6 months. All customers: {allrow.short_ei55:.0%} by the "
+                       f"formula, {allrow.short_ei_realistic:.0%} with the real EI cap (canada.ca, 2026).")
+            chart(V.fragility_age(a_))
+        l_ = seg[seg.segment == "loan"].set_index("group").loc[["no loan", "repaid", "running OK", "running in debt", "defaulted"]]
+        with st.container(border=True):
+            card_title("4. Borrowers in good standing are already twice as exposed",
+                       "Loan status from loans.csv joined to the judges' runway. Loan status is never a model input.")
+            chart(V.borrowers(l_))
     mg = load_migration()
     if mg is not None:
-        st.markdown("#### Distress is sticky")
+      with st.container(border=True):
+        card_title("5. Distress is sticky")
         mk = mg["markov_check"]
-        c1, c2 = st.columns([2, 3])
+        c1, c2 = st.columns([1, 1])
         c1.dataframe(pd.DataFrame({"months later": [3, 6, 12],
-                                   "a memoryless model predicts": [f"{mk[str(k_)]['pred'][2][2]:.0%}" for k_ in (3, 6, 12)],
-                                   "actually still distressed": [f"{mk[str(k_)]['actual'][2][2]:.0%}" for k_ in (3, 6, 12)]}),
+                                   "model predicts": [f"{mk[str(k_)]['pred'][2][2]:.0%}" for k_ in (3, 6, 12)],
+                                   "actually distressed": [f"{mk[str(k_)]['actual'][2][2]:.0%}" for k_ in (3, 6, 12)]}),
                      hide_index=True, width="stretch")
         c2.markdown("Customers with under 1 month of buffer, or overdrawn, stay that way far longer than a standard "
                     "migration matrix predicts: 43% are still there a year later. Once a customer falls behind they stay "
@@ -597,9 +648,8 @@ with tab_f:
 
 # ---------------- how it's calculated ----------------
 with tab_i:
-    st.divider()
-    st.markdown("### How every number is calculated")
-    st.caption("Each section shows the formula, then this account and the current twist plugged in, then the evidence.")
+    section("Show your work", "How every number is calculated",
+            "Each section shows the formula, then this account and the current twist plugged in, then the evidence.")
 
     with st.expander("1. The customer's numbers (judges' definitions, exact)", expanded=True):
         st.latex(r"I=\operatorname{median}(\text{money\_in}),\quad S=\operatorname{median}(\text{money\_out}),\quad "
@@ -709,9 +759,9 @@ with tab_i:
 # ---------------- investing ----------------
 with tab_v:
     import portfolio as PF
-    st.markdown("### Investing: cushion first, then invest the rest")
-    st.caption("Illustration, not advice. Model portfolios of broad index ETFs, no stock picking. "
-               "Past returns do not guarantee future returns.")
+    section("Grow", "Cushion first, then invest the rest",
+            "Illustration, not advice. Model portfolios of broad index ETFs, no stock picking. "
+            "Past returns do not guarantee future returns.")
     if load_market() is None:
         st.warning("Run portfolio.py once to download the market data.")
     else:
@@ -723,62 +773,52 @@ with tab_v:
         flag_now = bool(ew is not None and not isinstance(ew["past_overdraft"], str) and ew["flag"])
         pl = run_invest(acc, tol or "Growth", int(yrs or 10), flag_now)
 
-        st.markdown("#### 1. The cushion")
-        k = st.columns(4)
-        k[0].metric("Cushion target", f"{pl['cushion_months']:g} months", help="3 months if income is steady, 4.5 if "
-                    "somewhat irregular, 6 if irregular (income variation over the last 12 months)")
-        k[1].metric("In dollars", money(pl["cushion"]))
-        k[2].metric("Buffer now", money(p["B"]))
-        k[3].metric("Income variation", f"{pl['income_cv']:.0%}", help="Standard deviation / mean of money_in, last 12 months")
-        st.progress(float(min(1.0, p["B"] / pl["cushion"])) if pl["cushion"] > 0 else 1.0,
-                    text="Cushion full" if pl["cushion_gap"] == 0 else
-                    f"{money(pl['cushion_gap'])} short of the cushion")
+        c1, c2 = st.columns(2, gap="medium")
+        with c1, st.container(border=True):
+            card_title("1. The cushion", f"{pl['cushion_months']:g} months of spending: 3 if income is steady, 4.5 if "
+                       f"somewhat irregular, 6 if irregular. Income variation here: {pl['income_cv']:.0%}.")
+            kpi_band([("Target", money(pl["cushion"]), f"{pl['cushion_months']:g} months", ""),
+                      ("Buffer now", money(p["B"]), "", "")])
+            st.progress(float(min(1.0, p["B"] / pl["cushion"])) if pl["cushion"] > 0 else 1.0,
+                        text="Cushion full" if pl["cushion_gap"] == 0 else f"{money(pl['cushion_gap'])} short of the cushion")
+        with c2, st.container(border=True):
+            card_title("2. Risk capacity: what they can afford", "From their own cash flows, never demographics.")
+            kpi_band([("Capacity", pl["capacity"], "", "bad" if pl["capacity"] == "Low" else ""),
+                      ("Portfolio", pl["level"], f"asked for {pl['tolerance']}" if pl["capped"] else "their choice", "")])
+            st.markdown("<span style='font-size:0.88rem'>Why: " + "; ".join(pl["why"]) + ".</span>", unsafe_allow_html=True)
 
-        st.markdown("#### 2. Risk capacity: what they can afford")
-        k = st.columns([1, 3])
-        k[0].metric("Risk capacity", pl["capacity"])
-        k[1].markdown("**Why:** " + "; ".join(pl["why"]) + ".  \n"
-                      f"**Portfolio:** {pl['level']}" +
-                      (f" (they asked for {pl['tolerance']}, capped by {pl['capacity'].lower()} capacity)" if pl["capped"] else
-                       " (their tolerance, within their capacity)"))
+        with st.container(border=True):
+            card_title("3. The plan")
+            if not pl["investable"]:
+                st.info(pl["summary"])
+            else:
+                kpi_band([("Upfront", money(pl["upfront"]), "buffer above the cushion", ""),
+                          ("Weekly", money(pl["weekly"]), "half the surplus" + (f", after {pl['fill_months']} months"
+                                                                                if pl["fill_months"] else ""), ""),
+                          (f"Likely in {yrs or 10} years", money(pl["end_p50"]), f"bad case {money(pl['end_p10'])}", "good"),
+                          ("Same money in savings", money(pl["end_savings"]), f"at {PF.SAVINGS_RATE:.1%} a year", "")])
+                st.write(pl["summary"])
+                f = pl["fan"]
+                chart(V.fan(f.month / 12, (f.p10, f.p90), (f.p25, f.p75), f.p50,
+                            {f"savings account at {PF.SAVINGS_RATE:.1%}": (f.savings, V.S2, True),
+                             "money put in": (f.paid_in, V.REF, False)},
+                            "years", names=("80% of simulated outcomes", "middle 50%", f"{pl['level']} portfolio, median"),
+                            zero=False, height=280))
+                st.caption(f"5,000 paths replaying 12 month blocks of the ETFs' real monthly total returns "
+                           f"({pl['market_from']} to {pl['market_to']}, {pl['market_months']} months, from yfinance). "
+                           f"Chance of ending below the money put in: {pl['p_below_paid']:.0%}. "
+                           f"Chance of beating savings: {pl['p_beats_savings']:.0%}.")
 
-        st.markdown("#### 3. The plan")
-        if not pl["investable"]:
-            st.info(pl["summary"])
-        else:
-            k = st.columns(4)
-            k[0].metric("Upfront", money(pl["upfront"]), help="Buffer above the cushion")
-            k[1].metric("Weekly", money(pl["weekly"]), help="Half the monthly surplus, x 12 / 52" +
-                        ("" if not pl["fill_months"] else f"; starts after {pl['fill_months']} months of filling the cushion"))
-            k[2].metric(f"Likely value in {yrs or 10} years", money(pl["end_p50"]))
-            k[3].metric("Same money in savings", money(pl["end_savings"]), help=f"At {PF.SAVINGS_RATE:.1%} a year")
-            st.write(pl["summary"])
-            f = pl["fan"]
-            fig, ax = plt.subplots(figsize=(10, 3.6))
-            yrs_x = f.month / 12
-            ax.fill_between(yrs_x, f.p10 / 1e3, f.p90 / 1e3, color=SEQ[0], lw=0, label="80% of simulated outcomes")
-            ax.fill_between(yrs_x, f.p25 / 1e3, f.p75 / 1e3, color=SEQ[1], lw=0, label="middle 50%")
-            ax.plot(yrs_x, f.p50 / 1e3, color=SEQ[3], lw=2, label=f"{pl['level']} portfolio, median")
-            ax.plot(yrs_x, f.savings / 1e3, color=ORANGE, lw=2, ls="--", label=f"savings account at {PF.SAVINGS_RATE:.1%}")
-            ax.plot(yrs_x, f.paid_in / 1e3, color=GRAY, lw=1.5, label="money put in")
-            ax.set_xlabel("Years"); ax.set_ylabel("$ thousands"); ax.legend(frameon=False, fontsize=9, loc="upper left")
-            ax.set_title("Projected value", loc="left", fontsize=12, color=INK)
-            st.pyplot(fig, width="stretch"); plt.close(fig)
-            st.caption(f"5,000 paths replaying 12 month blocks of the ETFs' real monthly total returns "
-                       f"({pl['market_from']} to {pl['market_to']}, {pl['market_months']} months, from yfinance). "
-                       f"Chance of ending below the money put in: {pl['p_below_paid']:.0%}. "
-                       f"Chance of beating savings: {pl['p_beats_savings']:.0%}.")
-
-        st.markdown("#### The three model portfolios")
-        stats = PF.portfolio_stats(load_market())
-        hold = pd.DataFrame(PF.PORTFOLIOS).T.rename(columns=PF.TICKERS).map("{:.0%}".format)
-        st.dataframe(hold, width="stretch")
-        st.dataframe(stats.assign(**{c: stats[c].map("{:.1%}".format) for c in
-                                     ["annual_return", "volatility", "worst_12_months", "max_drawdown"]})
-                     .rename(columns={"annual_return": "return per year", "worst_12_months": "worst 12 months",
-                                      "max_drawdown": "worst drop"}), hide_index=True, width="stretch")
-        st.caption("Historical, 2015 to 2026, in Canadian dollars. 2022 hit every portfolio because bonds and stocks fell "
-                   "together, which is why even Conservative lost 11% over its worst 12 months.")
+        with st.container(border=True):
+            card_title("The three model portfolios", "Historical, 2015 to 2026, in Canadian dollars. 2022 hit every portfolio "
+                       "because bonds and stocks fell together, which is why even Conservative lost 11% over its worst 12 months.")
+            stats = PF.portfolio_stats(load_market())
+            hold = pd.DataFrame(PF.PORTFOLIOS).T.rename(columns=PF.TICKERS).map("{:.0%}".format)
+            st.dataframe(hold, width="stretch")
+            st.dataframe(stats.assign(**{c: stats[c].map("{:.1%}".format) for c in
+                                         ["annual_return", "volatility", "worst_12_months", "max_drawdown"]})
+                         .rename(columns={"annual_return": "return per year", "worst_12_months": "worst 12 months",
+                                          "max_drawdown": "worst drop"}), hide_index=True, width="stretch")
         cap = load_csv("capacity.csv")
         if cap is not None:
             st.markdown(f"**Across all customers:** {cap.below_cushion.mean():.0%} are below their own cushion; "

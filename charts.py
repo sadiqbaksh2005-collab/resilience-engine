@@ -67,7 +67,7 @@ def chart_blind_spot():
     ax.set_xlabel("AUC on held out 2024 to 2025 months (0.5 = coin flip, 1.0 = perfect); line = 95% CI")
     ax.grid(axis="y", visible=False)
     title(ax, "Runway alone misses most real overdrafts",
-          "78% of customers who overdrew showed 12+ months of runway three months before.  "
+          "79% of customers who overdrew showed 12+ months of runway three months before.  "
           "Gray = judges' formula, blue = our engine")
     source(fig, "Test set: 48,400 account months, 96 first overdrafts. All scores computed with data up to the prediction month only.")
     save(fig, "1_blind_spot.png")
