@@ -310,25 +310,23 @@ st.title(f"Account {acc}")
 st.markdown(f"**Twist:** {shock.describe()}  \n"
             f"<span style='color:{INK2}'>{p['n_months']} months of history, {p['first_month']} to {p['last_month']}</span>",
             unsafe_allow_html=True)
-top = st.columns(6)
+top = st.columns(5)
 top[0].metric("Runway now", fmt_rw(p["runway"][1]), help="Judges' formula, no shock")
 top[1].metric("Runway after twist", fmt_rw(r_j["runway_label"]),
               delta=None if ("120+" in r_j["runway_label"] or r_j["runway_change"] == 0) else f"{r_j['runway_change']:+.1f} months",
               help="Judges' formula: (B - one off) / (spending after - income after)")
 top[2].metric("Realistic EI runway", fmt_rw(r_r["runway_label"]), help="EI capped at $729/week, pension kept (our extension)")
 top[3].metric("Monthly gap", money(r_j["gap"]), help="Spending after the twist minus income after the twist")
-top[4].metric("No overdraft, 6 months", f"{sv['p_survive_6']:.0%}",
-              help="Monte Carlo on the customer's own months (conservative)")
 if ew is None:
     ew_txt = "n/a"
 elif isinstance(ew["past_overdraft"], str):
     ew_txt = "Overdrew before"
 else:
     ew_txt = "Flagged" if ew["flag"] else "Not flagged"
-top[5].metric("Early warning", ew_txt, help="Risk of a first overdraft in the next 3 months, model validated out of sample")
+top[4].metric("Early warning", ew_txt, help="Risk of a first overdraft in the next 3 months, model validated out of sample")
 st.divider()
 
-tab_c, tab_s, tab_v, tab_st, tab_m, tab_f = st.tabs(["Customer", "Twist and plan", "Investing", "States", "Model", "Proof"])
+tab_c, tab_s, tab_v, tab_m, tab_f = st.tabs(["Customer", "Twist and plan", "Investing", "Model", "Proof"])
 tab_p, tab_b, tab_i = tab_s, tab_m, tab_f        # merged: plan under the twist, bank view under the model, calculations under findings
 
 # ---------------- customer ----------------
@@ -429,7 +427,9 @@ with tab_s:
 with tab_p:
     st.divider()
     st.markdown("### The plan")
-    fund_m = st.radio("Emergency fund target", [3, 6], horizontal=True, format_func=lambda v: f"{v} months of spending")
+    import portfolio as PF
+    rc_plan = PF.risk_capacity(p)
+    fund_m = rc_plan["cushion_months"]
     pl = E.plans(p, shock, fund_months=fund_m)
     g, b = pl["goal"], pl["backup"]
     left, right = st.columns(2)
@@ -437,6 +437,9 @@ with tab_p:
         st.markdown("#### Goal plan: build the emergency fund")
         st.progress(float(g["funded_pct"]), text=f"{g['funded_pct']:.0%} funded: {money(g['current'])} of {money(g['target'])}")
         st.write(g["summary"])
+        st.caption(f"Target: {fund_m:g} months of spending, sized to this customer's income: 3 months if steady, 4.5 if "
+                   f"somewhat irregular, 6 if irregular (income variation here {rc_plan['income_cv']:.0%}). "
+                   "Once the cushion is full, the Investing tab shows the next step.")
     with right:
         st.markdown("#### Backup plan: if the shock hits")
         st.write(b["summary"])
@@ -578,6 +581,19 @@ with tab_f:
         f = OUT / "charts" / img
         if f.exists():
             st.image(str(f), caption=cap, width="stretch")
+    mg = load_migration()
+    if mg is not None:
+        st.markdown("#### Distress is sticky")
+        mk = mg["markov_check"]
+        c1, c2 = st.columns([2, 3])
+        c1.dataframe(pd.DataFrame({"months later": [3, 6, 12],
+                                   "a memoryless model predicts": [f"{mk[str(k_)]['pred'][2][2]:.0%}" for k_ in (3, 6, 12)],
+                                   "actually still distressed": [f"{mk[str(k_)]['actual'][2][2]:.0%}" for k_ in (3, 6, 12)]}),
+                     hide_index=True, width="stretch")
+        c2.markdown("Customers with under 1 month of buffer, or overdrawn, stay that way far longer than a standard "
+                    "migration matrix predicts: 43% are still there a year later. Once a customer falls behind they stay "
+                    "behind, which is why the early warning model aims to catch them months before.")
+        c2.caption("Held out test year (Oct 2024 to Sep 2025); matrix estimated on the train years. Source: migration.py.")
 
 # ---------------- how it's calculated ----------------
 with tab_i:
@@ -769,79 +785,3 @@ with tab_v:
                         f"{(cap.cushion_months > 3).mean():.0%} need more than the usual 3 months because their income "
                         f"is irregular; {cap.nothing.mean():.0%} have nothing to invest yet. Risk capacity: "
                         + ", ".join(f"{k} {v:.0%}" for k, v in cap.capacity.value_counts(normalize=True).items()) + ".")
-
-# ---------------- states ----------------
-with tab_st:
-    import migration as MG
-    mg = load_migration()
-    st.markdown("### Financial state: Stable, Stretched, Distressed")
-    st.caption("Each month, from history up to that month only. Buffer months = judges' B / S as of that month. "
-               "Stable: 3+ months. Stretched: 1 to 3. Distressed: under 1, or overdrawn that month. "
-               "The first 6 months of an account are a burn in.")
-    if mg is None:
-        st.warning("Run migration.py first.")
-    else:
-        h = MG.add_states(p["history"])
-        COL = {0: BLUE, 1: "#f2a37f", 2: "#c4441a"}
-        fig, ax = plt.subplots(figsize=(10, 1.5))
-        for i, s_ in enumerate(h.state):
-            ax.bar(i, 1, width=1, color=GRID if np.isnan(s_) else COL[int(s_)], edgecolor="white", lw=0.3)
-        step = max(1, len(h) // 8)
-        ax.set_xticks(range(0, len(h), step), h.month.iloc[::step], fontsize=8)
-        ax.set_yticks([]); ax.grid(False); ax.set_xlim(-0.5, len(h) - 0.5)
-        for k_, nm in enumerate(MG.NAMES):
-            ax.bar(0, 0, color=COL[k_], label=nm)
-        ax.bar(0, 0, color=GRID, label="burn in")
-        ax.legend(frameon=False, fontsize=8, ncol=4, loc="upper left", bbox_to_anchor=(0, 1.45))
-        st.pyplot(fig, width="stretch"); plt.close(fig)
-        cur = h.state.dropna()
-        if len(cur):
-            s0 = int(cur.iloc[-1])
-            run = (h.state != h.state.shift()).cumsum()
-            since = h.loc[run == run.iloc[-1], "month"].iloc[0]
-            P, lo, hi = (np.array(mg[k_]) for k_ in ("P", "P_lo", "P_hi"))
-            k = st.columns(4)
-            k[0].metric("State now", MG.NAMES[s0], help=f"Since {since}")
-            for j in range(3):
-                k[j + 1].metric(f"Next month: {MG.NAMES[j]}", f"{P[s0, j]:.1%}",
-                                help=f"95% CI {lo[s0, j]:.1%} to {hi[s0, j]:.1%}, from {mg['n_train']:,} monthly moves (train years)")
-
-        st.markdown("#### Finding: distress is sticky")
-        mk = mg["markov_check"]
-        sticky = pd.DataFrame({"months later": [3, 6, 12],
-                               "a memoryless model predicts": [f"{mk[str(k_)]['pred'][2][2]:.0%}" for k_ in (3, 6, 12)],
-                               "actually still Distressed": [f"{mk[str(k_)]['actual'][2][2]:.0%}" for k_ in (3, 6, 12)]})
-        c1, c2 = st.columns([2, 3])
-        c1.dataframe(sticky, hide_index=True, width="stretch")
-        mem, sh, pr = mg["memory_stretched"], mg["shock"], mg["prediction"]
-        c2.markdown(
-            f"- Once Distressed, customers stay there far longer than a standard migration matrix predicts, so we "
-            f"**do not** use it to forecast months ahead. The lesson: catch customers while they are Stretched.\n"
-            f"- **Relapse:** a Stretched customer who just left Distressed has a {mem['Distressed']['to_distressed']:.0%} "
-            f"chance of falling back next month, against {mem['Stretched']['to_distressed']:.0%} for one already Stretched.\n"
-            f"- **Shocks:** in a month where income falls below 60% of usual, Stretched to Distressed rises from "
-            f"{sh['P_calm'][1][2]:.1%} to {sh['P_shock'][1][2]:.1%}.\n"
-            f"- **Warning value:** within 3 months, Distressed customers overdraw at "
-            f"{pr['overdraft_rate_by_state']['Distressed']['rate']:.1%} against "
-            f"{pr['overdraft_rate_by_state']['Stable']['rate']:.1%} for Stable. The state ranks risk better than runway "
-            f"(AUC {pr['auc_state']:.2f} vs {pr['auc_runway']:.2f}), but well below the early warning model (0.955).")
-        st.caption("All on the held out test year (Oct 2024 to Sep 2025); matrix estimated on the train years.")
-
-        st.markdown(f"#### The bank this month ({mg['bank']['month']})")
-        c1, c2 = st.columns(2)
-        mix = mg["bank"]["mix"]
-        c1.dataframe(pd.DataFrame({"state": MG.NAMES, "customers": [int(x) for x in mix],
-                                   "share": [f"{x / sum(mix):.0%}" for x in mix]}), hide_index=True, width="stretch")
-        mv = pd.DataFrame(mg["bank"]["moves_last_month"], index=[f"from {n}" for n in MG.NAMES],
-                          columns=[f"to {n}" for n in MG.NAMES])
-        c2.dataframe(mv, width="stretch")
-        c2.caption("Moves between last month and this month.")
-        with st.expander("Monthly migration matrix with 95% confidence intervals"):
-            P, lo, hi = (np.array(mg[k_]) for k_ in ("P", "P_lo", "P_hi"))
-            st.dataframe(pd.DataFrame([[f"{P[i, j]:.1%} ({lo[i, j]:.1%} to {hi[i, j]:.1%})" for j in range(3)]
-                                       for i in range(3)], index=[f"from {n}" for n in MG.NAMES],
-                                      columns=[f"to {n}" for n in MG.NAMES]), width="stretch")
-            Pt = np.array(mg["P_test"])
-            st.caption(f"Train years, {mg['n_train']:,} moves. Same matrix on the test year: Stable stays "
-                       f"{Pt[0, 0]:.1%}, Stretched stays {Pt[1, 1]:.1%}, Distressed stays {Pt[2, 2]:.1%} "
-                       f"(train {P[2, 2]:.1%}): distress has become stickier recently.")
