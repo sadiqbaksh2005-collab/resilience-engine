@@ -309,12 +309,16 @@ def landing_bg():
 def landing():
     bg = landing_bg()
     st.markdown(f"""<style>
-[data-testid="stApp"]::before {{content: ""; position: fixed; inset: 0; z-index: 0;
-  background: url(data:image/jpeg;base64,{bg}) center center / cover no-repeat; animation: bgIn 1.8s ease both;}}
-[data-testid="stApp"]::after {{content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: linear-gradient(90deg, rgba(248,246,241,0.94) 0%, rgba(248,246,241,0.86) 30%, rgba(248,246,241,0.45) 50%,
-  rgba(248,246,241,0) 66%);}}
-@media (max-width: 760px) {{[data-testid="stApp"]::after {{background: rgba(248,246,241,0.84);}}}}
+[data-testid="stApp"]::before {{content: ""; position: fixed; z-index: 0; right: 2vw; width: 56vw; height: 28vw;
+  top: calc(47% - 14vw); background: url(data:image/jpeg;base64,{bg}) center / cover no-repeat;
+  animation: bgIn 1.8s ease both;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 22%, #000 90%, transparent 100%),
+                      linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0%, #000 22%, #000 90%, transparent 100%),
+              linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  mask-composite: intersect;}}
+@media (max-width: 760px) {{[data-testid="stApp"]::before {{display: none;}}}}
 </style>""", unsafe_allow_html=True)
     st.markdown("""<style>
 [data-testid="stAppViewContainer"], [data-testid="stMain"] {position: relative; z-index: 1; background: transparent !important;}
@@ -347,7 +351,7 @@ div[data-testid="stForm"] {animation: fadeUp 0.9s ease both 0.95s;}
 .land .title em {color: var(--terra); font-style: italic; display: block;}
 .land .rule {width: 64px; height: 1px; background: rgba(86,90,75,0.35); margin: 2.4vh 0 2vh 0;}
 .land .tag {color: var(--ink2); font-size: clamp(1rem, 1.25vw, 1.5rem); max-width: 30ch; line-height: 1.5; margin-bottom: 3vh;}
-div[data-testid="stForm"] {border: none; padding: 0; background: transparent; max-width: 44rem;}
+div[data-testid="stForm"] {border: none; padding: 0; background: transparent; max-width: 36rem;}
 div[data-testid="stForm"] input {min-height: clamp(2.9rem, 3.4vw, 3.8rem); font-size: clamp(0.95rem, 1vw, 1.2rem);
   background: rgba(255,255,255,0.75);}
 div[data-testid="stForm"] button {border-radius: 0.15rem; min-height: clamp(2.9rem, 3.4vw, 3.8rem);}
@@ -363,7 +367,7 @@ div[data-testid="stForm"] button p {letter-spacing: 0.16em; text-transform: uppe
 .land-foot {color: var(--ink2); font-size: clamp(0.78rem, 0.8vw, 0.95rem); padding: 1.1rem 0 1.4rem 0;}
 </style>""", unsafe_allow_html=True)
     st.markdown("<div class='topbar'><div class='brand'>Resilience Engine</div></div>", unsafe_allow_html=True)
-    left, right = st.columns([1.2, 1], gap="large", vertical_alignment="center")
+    left, right = st.columns([1, 1.15], gap="large", vertical_alignment="center")
     with left:
         st.markdown("<div class='land'><div class='eyebrow'>Tangerine · Resilience Rewired</div>"
                     "<div class='title'>Resilience<em>Engine.</em></div><div class='rule'></div>"
