@@ -309,8 +309,8 @@ else:
 top[5].metric("Early warning", ew_txt, help="Risk of a first overdraft in the next 3 months, model validated out of sample")
 st.divider()
 
-tab_c, tab_s, tab_p, tab_m, tab_b, tab_f, tab_i = st.tabs(
-    ["Customer", "Shock", "Plan", "Model", "Bank view", "Findings", "How it's calculated"])
+tab_c, tab_s, tab_m, tab_f = st.tabs(["Customer", "Twist and plan", "Model", "Proof"])
+tab_p, tab_b, tab_i = tab_s, tab_m, tab_f        # merged: plan under the twist, bank view under the model, calculations under findings
 
 # ---------------- customer ----------------
 with tab_c:
@@ -368,6 +368,7 @@ with tab_c:
 
 # ---------------- shock ----------------
 with tab_s:
+    st.markdown("### What the twist does")
     with st.expander("Show the math", expanded=True):
         st.latex(
             r"\text{runway}=\frac{B-C}{S'-I'}=\frac{%s-%s}{%s-%s}=\frac{%s}{%s}"
@@ -407,16 +408,18 @@ with tab_s:
 
 # ---------------- plan ----------------
 with tab_p:
+    st.divider()
+    st.markdown("### The plan")
     fund_m = st.radio("Emergency fund target", [3, 6], horizontal=True, format_func=lambda v: f"{v} months of spending")
     pl = E.plans(p, shock, fund_months=fund_m)
     g, b = pl["goal"], pl["backup"]
     left, right = st.columns(2)
     with left:
-        st.markdown("### Goal plan: build the emergency fund")
+        st.markdown("#### Goal plan: build the emergency fund")
         st.progress(float(g["funded_pct"]), text=f"{g['funded_pct']:.0%} funded: {money(g['current'])} of {money(g['target'])}")
         st.write(g["summary"])
     with right:
-        st.markdown("### Backup plan: if the shock hits")
+        st.markdown("#### Backup plan: if the shock hits")
         st.write(b["summary"])
         if b["options"]:
             opt = pd.DataFrame(b["options"])
@@ -526,6 +529,8 @@ with tab_m:
 
 # ---------------- bank view ----------------
 with tab_b:
+    st.divider()
+    st.markdown("### Bank view: who to call this month")
     if bank is None:
         st.warning("Run early_warning.py first.")
     else:
@@ -546,6 +551,7 @@ with tab_b:
 
 # ---------------- findings ----------------
 with tab_f:
+    st.markdown("### Findings")
     for img, cap in [("1_blind_spot.png", "Runway alone misses most real overdrafts"),
                      ("3_fragility_age.png", "Who is fragile"),
                      ("2_warning_signal.png", "The warning signs"),
@@ -556,7 +562,8 @@ with tab_f:
 
 # ---------------- how it's calculated ----------------
 with tab_i:
-    st.markdown("#### How every number is calculated")
+    st.divider()
+    st.markdown("### How every number is calculated")
     st.caption("Each section shows the formula, then this account and the current twist plugged in, then the evidence.")
 
     with st.expander("1. The customer's numbers (judges' definitions, exact)", expanded=True):
