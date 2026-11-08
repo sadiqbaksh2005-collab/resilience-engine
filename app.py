@@ -593,9 +593,139 @@ with tab_s:
                     "months after the shock",
                     marker=(shock.ei_months, "reduced income ends") if (shock.ei_months and shock.income_mult != 1) else None))
 
+# ---------------- customer notification preview ----------------
+def _month_after(n):
+    import datetime as _dt
+    t = _dt.date.today()
+    y, m = divmod(t.month - 1 + int(np.ceil(n)), 12)
+    d = _dt.date(t.year + y, m + 1, 1)
+    return d.strftime("%B") if d.year == t.year else d.strftime("%B %Y")
+
+
+def customer_notifications(acc, p, ew):
+    """Gentle, specific messages built from the customer's own numbers. Only about 1 in 8 flagged
+    customers really overdraw, so a flag becomes a nudge with an action, never a warning."""
+    import portfolio as PF
+    rc = PF.risk_capacity(p)
+    m = rc["cushion_months"]
+    g = E.plans(p, None, fund_months=m)["goal"]
+    save, months = g["monthly_saving"], g["months_to_goal"]
+    weekly = save * 12 / 52
+    if save > 0 and np.isfinite(months) and months > 0:
+        when = f"by {_month_after(months)}" if months <= 36 else "over the next few years"
+        step = (f"Trimming card and cash spending by 10% frees ${save:,.0f} a month. Saved, that builds a "
+                f"{m:g} month cushion {when}." if g["requires_flex_cut"] else
+                f"Setting aside ${weekly:,.0f} a week builds a {m:g} month cushion {when}.")
+    else:
+        step = "Tap to see a plan built from your own numbers."
+    flagged = ew is not None and not isinstance(ew["past_overdraft"], str) and bool(ew["flag"])
+    overdrew = ew is not None and isinstance(ew["past_overdraft"], str)
+    if flagged:
+        return [("Money may get tight soon", "Your balance has been running lower than usual for you. Nothing is wrong "
+                 "yet, but the next few months could be tight.", "now"),
+                ("A small step that helps", step, "now")], "flagged"
+    if overdrew:
+        import datetime as _dt
+        mon = _dt.datetime.strptime(ew["past_overdraft"], "%Y-%m").strftime("%B %Y")
+        return [("Let's build a buffer", f"Your balance dipped below zero in {mon}. A {m:g} month cushion "
+                 f"(${g['target']:,.0f}) would cover a month like that.", "now"),
+                ("Your next step", step, "now")], "overdrew"
+    gap = p["S"] - p["I"]
+    if p["I"] > 0 and gap > 0.05 * p["I"]:
+        last = (f"Your savings cover it for now, about {p['B'] / gap:.0f} months at this pace." if p["B"] > 0
+                else "There is no buffer left to cover it.")
+        flex = p["flex"]
+        if flex > 0:
+            share = min(1.0, gap / flex)
+            fix = (f"Trimming card and cash spending by {share:.0%} (${gap:,.0f} a month) would close the gap."
+                   if share < 1 else f"Card and cash spending is ${flex:,.0f} a month, so the fix starts with bills or income.")
+        else:
+            fix = step
+        return [("Spending is running ahead", f"In a typical month you spend about ${gap:,.0f} more than comes in. {last}", "now"),
+                ("One change that helps", fix, "now")], "deficit"
+    if g["shortfall"] == 0:
+        notes = [("You're covered", f"Your savings cover {p['B'] / p['S']:.1f} months of spending, above your "
+                  f"{m:g} month target.", "now")]
+        if p["I"] > p["S"]:
+            inv = run_invest(acc, "Balanced", 10, False)
+            if inv.get("investable"):
+                notes.append(("Ready to grow", f"Investing ${inv['weekly']:,.0f} a week in a {inv['level']} portfolio "
+                              f"could grow to about ${inv['end_p50']:,.0f} in 10 years.", "now"))
+        return notes, "healthy"
+    return [("You're on track", f"Your cushion is {g['funded_pct']:.0%} of the way to {m:g} months of spending.", "now"),
+            ("Keep it going", step, "now")], "building"
+
+
+PHONE_CSS = """<style>
+.phone-wrap {display: flex; justify-content: center; padding: 6px 0 2px 0;}
+.phone {width: 300px; height: 620px; border-radius: 48px; padding: 11px; background: #2E3029;
+  box-shadow: 0 24px 50px rgba(46,48,41,0.28), inset 0 0 0 2px #45473E;}
+.screen {position: relative; width: 100%; height: 100%; border-radius: 38px; overflow: hidden;
+  background: radial-gradient(120% 70% at 20% 0%, #8E937D 0%, transparent 60%),
+              radial-gradient(110% 80% at 100% 100%, #C98A6C 0%, transparent 55%),
+              linear-gradient(170deg, #6E7361 0%, #A99F88 55%, #D9C7B0 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #FBF8F3;}
+.island {position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 92px; height: 26px;
+  border-radius: 20px; background: #1E1F1B;}
+.status {position: absolute; top: 14px; left: 26px; right: 24px; display: flex; justify-content: space-between;
+  font-size: 12px; font-weight: 600;}
+.status .icons {display: flex; gap: 5px; align-items: center;}
+.status .bat {width: 21px; height: 10px; border: 1.4px solid #FBF8F3; border-radius: 3px; position: relative;}
+.status .bat::after {content: ""; position: absolute; inset: 1.5px 4px 1.5px 1.5px; background: #FBF8F3; border-radius: 1px;}
+.lock {text-align: center; margin-top: 58px;}
+.lock .date {font-size: 14px; font-weight: 500; opacity: 0.92; letter-spacing: 0.01em;}
+.lock .time {font-family: Georgia, 'Times New Roman', serif; font-size: 74px; line-height: 1.02; letter-spacing: -0.02em;}
+.stack {position: absolute; left: 10px; right: 10px; top: 214px; display: flex; flex-direction: column; gap: 8px;}
+.note {background: rgba(251,248,243,0.80); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-radius: 18px; padding: 11px 13px 12px 13px; color: #2E3029; box-shadow: 0 6px 16px rgba(46,48,41,0.10);
+  animation: noteIn 0.6s ease both;}
+.note:nth-child(2) {animation-delay: 0.25s;}
+@keyframes noteIn {from {opacity: 0; transform: translateY(-8px);} to {opacity: 1; transform: none;}}
+@media (prefers-reduced-motion: reduce) {.note {animation: none;}}
+.note .head {display: flex; align-items: center; gap: 7px; font-size: 11px; color: #6E6A60; margin-bottom: 4px;}
+.note .app {width: 20px; height: 20px; border-radius: 5px; background: #565A4B; color: #FBF8F3; display: grid;
+  place-items: center; font-family: Georgia, serif; font-size: 12px; font-style: italic;}
+.note .name {text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; flex: 1;}
+.note .t {font-size: 14px; font-weight: 600; margin-bottom: 2px;}
+.note .b {font-size: 13px; line-height: 1.38;}
+.note .b b {color: #A85E40; font-weight: 600;}
+.bottom {position: absolute; bottom: 30px; left: 34px; right: 34px; display: flex; justify-content: space-between;}
+.bottom span {width: 44px; height: 44px; border-radius: 50%; background: rgba(46,48,41,0.30);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);}
+.homebar {position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); width: 112px; height: 4px;
+  border-radius: 3px; background: #FBF8F3; opacity: 0.85;}
+</style>"""
+
+
+@st.dialog("What the customer sees", width="small")
+def phone_preview(acc):
+    import datetime as _dt, html, re
+    notes, kind = customer_notifications(acc, load_profile(acc), ew)
+    now = _dt.datetime.now()
+    hl = lambda t: re.sub(r"(\$[\d,]+(?: a (?:week|month))?)", r"<b>\1</b>", html.escape(t))
+    cards = "".join(f"<div class='note'><div class='head'><span class='app'>R</span><span class='name'>Resilience</span>"
+                    f"<span>{w}</span></div><div class='t'>{html.escape(t)}</div><div class='b'>{hl(b)}</div></div>"
+                    for t, b, w in notes)
+    st.markdown(PHONE_CSS + f"""<div class='phone-wrap'><div class='phone'><div class='screen'>
+<div class='island'></div><div class='status'><span>{now:%-I:%M}</span><span class='icons'>5G <span class='bat'></span></span></div>
+<div class='lock'><div class='date'>{now:%A, %B %-d}</div><div class='time'>{now:%-I:%M}</div></div>
+<div class='stack'>{cards}</div>
+<div class='bottom'><span></span><span></span></div><div class='homebar'></div>
+</div></div></div>""", unsafe_allow_html=True)
+    why = {"flagged": "Flagged by the early warning model. Only about 1 in 8 flagged customers actually overdraw, so the "
+                      "message is a gentle nudge with one concrete step, never a warning.",
+           "overdrew": "Has overdrawn before, so the message turns that month into a reason to build a cushion.",
+           "healthy": "Cushion already full, so the message moves to the next step: growing the rest.",
+           "building": "Not flagged, so the message is encouragement and the next step toward their cushion.",
+           "deficit": "Not flagged, but spending runs ahead of income, so the message names the gap and one fix."}[kind]
+    st.caption(f"Account {acc}. {why} Every amount comes from this customer's own plan.")
+
+
 # ---------------- plan ----------------
 with tab_p:
     section("Make a plan", "The plan", "A backup plan if the shock hits, and a goal to be ready for the next one.")
+    if st.button("Preview the customer's notification", icon=":material/smartphone:", key="phone_btn"):
+        phone_preview(acc)
     import portfolio as PF
     rc_plan = PF.risk_capacity(p)
     fund_m = rc_plan["cushion_months"]
