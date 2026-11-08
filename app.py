@@ -299,12 +299,42 @@ def go_home():
     st.query_params.clear()
 
 
+@st.cache_data
+def landing_bg():
+    import base64
+    f = Path(__file__).parent / "assets" / "landing_bg.jpg"
+    return base64.b64encode(f.read_bytes()).decode() if f.exists() else ""
+
+
 def landing():
+    bg = landing_bg()
+    st.markdown(f"""<style>
+[data-testid="stApp"]::before {{content: ""; position: fixed; inset: 0; z-index: 0;
+  background: url(data:image/jpeg;base64,{bg}) right center / cover no-repeat; animation: bgIn 1.8s ease both;}}
+[data-testid="stApp"]::after {{content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(246,241,234,0.97) 0%, rgba(246,241,234,0.93) 28%, rgba(246,241,234,0.55) 48%,
+  rgba(246,241,234,0.0) 68%);}}
+@media (max-width: 760px) {{[data-testid="stApp"]::after {{background: rgba(246,241,234,0.86);}}}}
+</style>""", unsafe_allow_html=True)
     st.markdown("""<style>
+[data-testid="stAppViewContainer"], [data-testid="stMain"] {position: relative; z-index: 1; background: transparent !important;}
+@keyframes bgIn {from {opacity: 0; transform: scale(1.03);} to {opacity: 1; transform: none;}}
+@keyframes fadeUp {from {opacity: 0; transform: translateY(14px);} to {opacity: 1; transform: none;}}
+.topbar {animation: fadeUp 0.9s ease both 0.1s;}
+.land .eyebrow {animation: fadeUp 0.9s ease both 0.35s;}
+.land .title {animation: fadeUp 1.0s ease both 0.5s;}
+.land .rule, .land .tag {animation: fadeUp 0.9s ease both 0.75s;}
+div[data-testid="stForm"] {animation: fadeUp 0.9s ease both 0.95s;}
+.band, .land-foot {animation: fadeUp 0.9s ease both 1.15s;}
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stApp"]::before, .topbar, .land .eyebrow, .land .title, .land .rule, .land .tag,
+  div[data-testid="stForm"], .band, .land-foot {animation: none !important;}
+}
 section[data-testid="stSidebar"], div[data-testid="stSidebarCollapsedControl"], header[data-testid="stHeader"] {display: none !important;}
 div[data-testid="stMainBlockContainer"], .block-container {max-width: 1320px; padding-top: 0 !important; padding-bottom: 0;}
 .topbar {display: flex; justify-content: space-between; align-items: center; padding: 1.6rem 0 1.4rem 0;
-  border-bottom: 1px solid var(--line); margin-bottom: 4.5vh;}
+  border-bottom: 1px solid var(--line); margin-bottom: 4.5vh; max-width: 46%;}
+@media (max-width: 760px) {.topbar {max-width: none;}}
 .topbar .brand {font-family: var(--serif); letter-spacing: 0.32em; text-transform: uppercase; font-size: 1.05rem; color: var(--ink);}
 .topbar .nav {display: flex; gap: 2.2rem; font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink2);}
 .land .title {font-family: var(--serif); font-weight: 400; font-size: clamp(3.4rem, 7vw, 6rem); line-height: 1.0;
@@ -316,8 +346,8 @@ div[data-testid="stMainBlockContainer"], .block-container {max-width: 1320px; pa
 div[data-testid="stForm"] {border: none; padding: 0; background: transparent;}
 .land-btns .stButton button, div[data-testid="stForm"] button {border-radius: 0.15rem; min-height: 2.9rem;}
 div[data-testid="stForm"] button p, .land-btns .stButton button p {letter-spacing: 0.16em; text-transform: uppercase; font-size: 0.72rem;}
-.band {margin-top: 6vh; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden;
-  white-space: nowrap; padding: 0.9rem 0; background: #EFE7DC;}
+.band {margin-top: 9vh; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden;
+  white-space: nowrap; padding: 0.9rem 0; background: rgba(239,231,220,0.82); backdrop-filter: blur(3px);}
 .band .track {display: inline-block; animation: slide 38s linear infinite;}
 .band span {font-size: 0.74rem; letter-spacing: 0.26em; text-transform: uppercase; color: var(--ink2); margin: 0 1.4rem;}
 .band b {color: var(--terra); font-weight: 400;}
@@ -325,9 +355,7 @@ div[data-testid="stForm"] button p, .land-btns .stButton button p {letter-spacin
 @media (prefers-reduced-motion: reduce) {.band .track {animation: none;}}
 .land-foot {color: var(--ink2); font-size: 0.8rem; padding: 1.2rem 0 2rem 0;}
 </style>""", unsafe_allow_html=True)
-    st.markdown("<div class='topbar'><div class='brand'>Resilience Engine</div>"
-                "<div class='nav'><span>Know</span><span>Shock</span><span>Warn</span><span>Plan</span></div></div>",
-                unsafe_allow_html=True)
+    st.markdown("<div class='topbar'><div class='brand'>Resilience Engine</div></div>", unsafe_allow_html=True)
     left, right = st.columns([1, 1.1], gap="large", vertical_alignment="center")
     with left:
         st.markdown("<div class='land'><div class='eyebrow'>Tangerine · Resilience Rewired</div>"
@@ -352,12 +380,7 @@ div[data-testid="stForm"] button p, .land-btns .stButton button p {letter-spacin
         if rnd:
             pick_random(); st.rerun()
     with right:
-        demo = 29010
-        pd_ = load_profile(demo)
-        sv_ = run_survival(demo, astuple(E.Shock(income_mult=0.55, ei_months=6)))
-        st.altair_chart(V.hero_fan(sv_["fan"], pd_["B"]), width="stretch", theme=None)
-        st.markdown("<div style='color:var(--ink2);font-size:0.78rem;letter-spacing:0.08em'>Account 29010, laid off on EI: "
-                    "5,000 simulated futures from their own months. Dashed line: $0.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='min-height:52vh'></div>", unsafe_allow_html=True)
     words = ["Know the customer", "Apply the shock", "Warn early", "Make a plan", "Build the cushion", "Then invest"]
     run = "".join(f"<span>{w}</span><span><b>◆</b></span>" for w in words)
     st.markdown(f"<div class='band'><div class='track'>{run}{run}{run}{run}</div></div>"
