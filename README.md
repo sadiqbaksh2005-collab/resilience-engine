@@ -34,6 +34,8 @@ python3 population.py        # population stress test + fairness audit
 python3 robustness.py        # headline across 3, 6, 12 month horizons
 python3 early_warning.py     # validated model, bank view, latest features
 python3 demo_accounts.py     # demo accounts per story
+python3 migration.py         # Stable / Stretched / Distressed states and migration matrix
+python3 portfolio.py         # market data (yfinance, once) + cushion, risk capacity, model portfolios
 python3 charts.py            # pitch charts -> outputs/charts
 ```
 
@@ -46,9 +48,12 @@ python3 charts.py            # pitch charts -> outputs/charts
 | `app.py` | Streamlit app |
 | `features.py`, `baselines.py`, `early_warning.py` | Early warning model |
 | `validate_*.py`, `robustness.py`, `population.py` | Evidence |
+| `migration.py` | Financial states and migration matrix, with the Markov check that shows distress is sticky |
+| `portfolio.py` | Cushion, risk capacity, model ETF portfolios, 10 year projection (illustration, not advice) |
 | `hmm.py` | Hidden Markov model experiment (secondary) |
 
 ## Data and sources
 
 - PKDD'99 Discovery Challenge Financial dataset (real anonymized bank data), CTU Prague Relational Dataset Repository: https://relational.fel.cvut.cz/dataset/Financial
+- ETF monthly total returns (XIC, XUU, XEF, XBB), Yahoo Finance via yfinance, cached in outputs/market_returns.csv
 - Employment Insurance regular benefits, 2026 maximum ($729/week): https://www.canada.ca/en/services/benefits/ei/ei-regular-benefit/benefit-amount.html

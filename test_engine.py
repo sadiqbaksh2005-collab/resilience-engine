@@ -144,5 +144,23 @@ for a in ids[::5]:
     viol += E.apply_shock(p, replace(s, ei_cap=True))["runway"] > E.apply_shock(p, s)["runway"] + 1e-9
     viol += E.apply_shock(p, replace(s, keep_pension=True))["runway"] < E.apply_shock(p, s)["runway"] - 1e-9
 print(f"monotonicity violations: {viol}")
-assert not errors and viol == 0
+
+# investing layer: never above capacity, never invests in deficit, numbers finite
+import portfolio as PF
+mkt, inv_bad, inv_n = PF.load_market(), [], 0
+for a in ids[::3]:
+    p = E.profile(a)
+    for tol in PF.LEVELS:
+        try:
+            pl = PF.invest_plan(p, tol, a % 2 == 0, n_paths=200, r=mkt)
+            inv_n += 1
+            assert PF.LEVELS.index(pl["level"]) <= min(PF.LEVELS.index(tol), PF.LEVELS.index(PF.CAPACITY_MAX[pl["capacity"]]))
+            assert pl["upfront"] >= 0 and pl["weekly"] >= 0
+            if pl["investable"]:
+                assert pl["surplus"] > 0 and np.isfinite(pl["fan"].drop(columns="month").to_numpy()).all()
+                assert pl["end_p10"] <= pl["end_p50"] <= pl["end_p90"]
+        except Exception as e:
+            inv_bad.append((a, tol, repr(e)))
+print(f"investing: {inv_n:,} plans checked, {len(inv_bad)} errors {inv_bad[:3]}")
+assert not errors and viol == 0 and not inv_bad
 print("ALL TESTS PASSED")

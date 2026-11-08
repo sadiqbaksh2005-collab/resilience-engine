@@ -5,3 +5,4 @@ scipy==1.17.1
 matplotlib==3.10.8
 hmmlearn==0.3.3
 streamlit==1.67.0
+yfinance==1.8.0    # only to refresh market data (portfolio.py)
