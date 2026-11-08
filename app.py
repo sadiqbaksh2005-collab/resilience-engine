@@ -310,16 +310,23 @@ def landing():
     bg = landing_bg()
     st.markdown(f"""<style>
 [data-testid="stApp"]::before {{content: ""; position: fixed; inset: 0; z-index: 0;
-  background: url(data:image/jpeg;base64,{bg}) right center / cover no-repeat; animation: bgIn 1.8s ease both;}}
+  background: url(data:image/jpeg;base64,{bg}) center center / cover no-repeat; animation: bgIn 1.8s ease both;}}
 [data-testid="stApp"]::after {{content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: linear-gradient(90deg, rgba(246,241,234,0.97) 0%, rgba(246,241,234,0.93) 28%, rgba(246,241,234,0.55) 48%,
-  rgba(246,241,234,0.0) 68%);}}
-@media (max-width: 760px) {{[data-testid="stApp"]::after {{background: rgba(246,241,234,0.86);}}}}
+  background: linear-gradient(90deg, rgba(248,246,241,0.94) 0%, rgba(248,246,241,0.86) 30%, rgba(248,246,241,0.45) 50%,
+  rgba(248,246,241,0) 66%);}}
+@media (max-width: 760px) {{[data-testid="stApp"]::after {{background: rgba(248,246,241,0.84);}}}}
 </style>""", unsafe_allow_html=True)
     st.markdown("""<style>
 [data-testid="stAppViewContainer"], [data-testid="stMain"] {position: relative; z-index: 1; background: transparent !important;}
+section[data-testid="stSidebar"], div[data-testid="stSidebarCollapsedControl"], header[data-testid="stHeader"] {display: none !important;}
+/* full screen: no max width, the page is one viewport tall, the hero row takes the free space */
+div[data-testid="stMainBlockContainer"] {max-width: none !important; padding: 0 6vw !important;}
+div[data-testid="stMainBlockContainer"] > div[data-testid="stVerticalBlock"] {min-height: calc(100vh - 16px); gap: 0;}
+div[data-testid="stMainBlockContainer"] > div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stHorizontalBlock"]),
+div[data-testid="stMainBlockContainer"] > div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] {
+  flex: 1 1 auto; display: flex; align-items: center;}
 @keyframes bgIn {from {opacity: 0; transform: scale(1.03);} to {opacity: 1; transform: none;}}
-@keyframes fadeUp {from {opacity: 0; transform: translateY(14px);} to {opacity: 1; transform: none;}}
+@keyframes fadeUp {from {opacity: 0; transform: translateY(16px);} to {opacity: 1; transform: none;}}
 .topbar {animation: fadeUp 0.9s ease both 0.1s;}
 .land .eyebrow {animation: fadeUp 0.9s ease both 0.35s;}
 .land .title {animation: fadeUp 1.0s ease both 0.5s;}
@@ -330,33 +337,33 @@ div[data-testid="stForm"] {animation: fadeUp 0.9s ease both 0.95s;}
   [data-testid="stApp"]::before, .topbar, .land .eyebrow, .land .title, .land .rule, .land .tag,
   div[data-testid="stForm"], .band, .land-foot {animation: none !important;}
 }
-section[data-testid="stSidebar"], div[data-testid="stSidebarCollapsedControl"], header[data-testid="stHeader"] {display: none !important;}
-div[data-testid="stMainBlockContainer"], .block-container {max-width: 1320px; padding-top: 0 !important; padding-bottom: 0;}
-.topbar {display: flex; justify-content: space-between; align-items: center; padding: 1.6rem 0 1.4rem 0;
-  border-bottom: 1px solid var(--line); margin-bottom: 4.5vh; max-width: 46%;}
+.topbar {padding: 2.2rem 0 1.4rem 0; border-bottom: 1px solid rgba(86,90,75,0.25); max-width: 44%;}
 @media (max-width: 760px) {.topbar {max-width: none;}}
-.topbar .brand {font-family: var(--serif); letter-spacing: 0.32em; text-transform: uppercase; font-size: 1.05rem; color: var(--ink);}
-.topbar .nav {display: flex; gap: 2.2rem; font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink2);}
-.land .title {font-family: var(--serif); font-weight: 400; font-size: clamp(3.4rem, 7vw, 6rem); line-height: 1.0;
-  letter-spacing: -0.02em; margin: 0.5rem 0 0 0; color: var(--sage);}
+.topbar .brand {font-family: var(--serif); letter-spacing: 0.32em; text-transform: uppercase;
+  font-size: clamp(1rem, 1.1vw, 1.35rem); color: var(--ink);}
+.land .eyebrow {font-size: clamp(0.7rem, 0.75vw, 0.95rem);}
+.land .title {font-family: var(--serif); font-weight: 400; font-size: clamp(3.6rem, 8.6vw, 11rem); line-height: 0.98;
+  letter-spacing: -0.025em; margin: 0.6rem 0 0 0; color: var(--sage);}
 .land .title em {color: var(--terra); font-style: italic; display: block;}
-@media (max-width: 640px) {.topbar .nav {display: none;}}
-.land .rule {width: 52px; height: 1px; background: var(--line); margin: 1.8rem 0 1.4rem 0;}
-.land .tag {color: var(--ink2); font-size: 1.02rem; max-width: 34ch; line-height: 1.55; margin-bottom: 1.6rem;}
-div[data-testid="stForm"] {border: none; padding: 0; background: transparent;}
-.land-btns .stButton button, div[data-testid="stForm"] button {border-radius: 0.15rem; min-height: 2.9rem;}
-div[data-testid="stForm"] button p, .land-btns .stButton button p {letter-spacing: 0.16em; text-transform: uppercase; font-size: 0.72rem;}
-.band {margin-top: 9vh; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden;
-  white-space: nowrap; padding: 0.9rem 0; background: rgba(239,231,220,0.82); backdrop-filter: blur(3px);}
-.band .track {display: inline-block; animation: slide 38s linear infinite;}
-.band span {font-size: 0.74rem; letter-spacing: 0.26em; text-transform: uppercase; color: var(--ink2); margin: 0 1.4rem;}
+.land .rule {width: 64px; height: 1px; background: rgba(86,90,75,0.35); margin: 2.4vh 0 2vh 0;}
+.land .tag {color: var(--ink2); font-size: clamp(1rem, 1.25vw, 1.5rem); max-width: 30ch; line-height: 1.5; margin-bottom: 3vh;}
+div[data-testid="stForm"] {border: none; padding: 0; background: transparent; max-width: 44rem;}
+div[data-testid="stForm"] input {min-height: clamp(2.9rem, 3.4vw, 3.8rem); font-size: clamp(0.95rem, 1vw, 1.2rem);
+  background: rgba(255,255,255,0.75);}
+div[data-testid="stForm"] button {border-radius: 0.15rem; min-height: clamp(2.9rem, 3.4vw, 3.8rem);}
+div[data-testid="stForm"] button p {letter-spacing: 0.16em; text-transform: uppercase; font-size: clamp(0.72rem, 0.8vw, 0.95rem);}
+.band {border-top: 1px solid rgba(86,90,75,0.25); border-bottom: 1px solid rgba(86,90,75,0.25); overflow: hidden;
+  white-space: nowrap; padding: 1rem 0; background: rgba(248,246,241,0.72); backdrop-filter: blur(4px);
+  margin: 0 -6vw;}
+.band .track {display: inline-block; animation: slide 40s linear infinite;}
+.band span {font-size: clamp(0.72rem, 0.8vw, 0.95rem); letter-spacing: 0.26em; text-transform: uppercase; color: var(--ink2); margin: 0 1.6rem;}
 .band b {color: var(--terra); font-weight: 400;}
 @keyframes slide {from {transform: translateX(0);} to {transform: translateX(-50%);}}
 @media (prefers-reduced-motion: reduce) {.band .track {animation: none;}}
-.land-foot {color: var(--ink2); font-size: 0.8rem; padding: 1.2rem 0 2rem 0;}
+.land-foot {color: var(--ink2); font-size: clamp(0.78rem, 0.8vw, 0.95rem); padding: 1.1rem 0 1.4rem 0;}
 </style>""", unsafe_allow_html=True)
     st.markdown("<div class='topbar'><div class='brand'>Resilience Engine</div></div>", unsafe_allow_html=True)
-    left, right = st.columns([1, 1.1], gap="large", vertical_alignment="center")
+    left, right = st.columns([1.2, 1], gap="large", vertical_alignment="center")
     with left:
         st.markdown("<div class='land'><div class='eyebrow'>Tangerine · Resilience Rewired</div>"
                     "<div class='title'>Resilience<em>Engine.</em></div><div class='rule'></div>"
@@ -380,7 +387,7 @@ div[data-testid="stForm"] button p, .land-btns .stButton button p {letter-spacin
         if rnd:
             pick_random(); st.rerun()
     with right:
-        st.markdown("<div style='min-height:52vh'></div>", unsafe_allow_html=True)
+        st.empty()
     words = ["Know the customer", "Apply the shock", "Warn early", "Make a plan", "Build the cushion", "Then invest"]
     run = "".join(f"<span>{w}</span><span><b>◆</b></span>" for w in words)
     st.markdown(f"<div class='band'><div class='track'>{run}{run}{run}{run}</div></div>"
