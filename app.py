@@ -205,6 +205,7 @@ demo_map = {} if demos is None else dict(zip(demos.account_id.astype(int), demos
 if "acc" not in st.session_state and st.query_params.get("acc", "").isdigit():
     st.session_state["acc"] = int(st.query_params["acc"])
 st.session_state.setdefault("acc", 20111)
+st.session_state.setdefault("started", "acc" in st.query_params)
 
 
 _bank = load_csv("bank_view.csv")
@@ -227,6 +228,8 @@ def status_of(a):
 
 def choose(a):
     st.session_state["acc"] = int(a)
+    st.session_state["started"] = True
+    st.query_params["acc"] = str(int(a))
 
 
 def pick_random():
@@ -291,6 +294,82 @@ def account_picker():
                 if hit and hit != cur:
                     choose(hit); st.rerun()
 
+def go_home():
+    st.session_state["started"] = False
+    st.query_params.clear()
+
+
+def landing():
+    st.markdown("""<style>
+section[data-testid="stSidebar"], div[data-testid="stSidebarCollapsedControl"], header[data-testid="stHeader"] {display: none !important;}
+div[data-testid="stMainBlockContainer"], .block-container {max-width: 1320px; padding-top: 0 !important; padding-bottom: 0;}
+.topbar {display: flex; justify-content: space-between; align-items: center; padding: 1.6rem 0 1.4rem 0;
+  border-bottom: 1px solid var(--line); margin-bottom: 4.5vh;}
+.topbar .brand {font-family: var(--serif); letter-spacing: 0.32em; text-transform: uppercase; font-size: 1.05rem; color: var(--ink);}
+.topbar .nav {display: flex; gap: 2.2rem; font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink2);}
+.land .title {font-family: var(--serif); font-weight: 400; font-size: clamp(3.4rem, 7vw, 6rem); line-height: 1.0;
+  letter-spacing: -0.02em; margin: 0.5rem 0 0 0; color: var(--sage);}
+.land .title em {color: var(--terra); font-style: italic; display: block;}
+@media (max-width: 640px) {.topbar .nav {display: none;}}
+.land .rule {width: 52px; height: 1px; background: var(--line); margin: 1.8rem 0 1.4rem 0;}
+.land .tag {color: var(--ink2); font-size: 1.02rem; max-width: 34ch; line-height: 1.55; margin-bottom: 1.6rem;}
+div[data-testid="stForm"] {border: none; padding: 0; background: transparent;}
+.land-btns .stButton button, div[data-testid="stForm"] button {border-radius: 0.15rem; min-height: 2.9rem;}
+div[data-testid="stForm"] button p, .land-btns .stButton button p {letter-spacing: 0.16em; text-transform: uppercase; font-size: 0.72rem;}
+.band {margin-top: 6vh; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden;
+  white-space: nowrap; padding: 0.9rem 0; background: #EFE7DC;}
+.band .track {display: inline-block; animation: slide 38s linear infinite;}
+.band span {font-size: 0.74rem; letter-spacing: 0.26em; text-transform: uppercase; color: var(--ink2); margin: 0 1.4rem;}
+.band b {color: var(--terra); font-weight: 400;}
+@keyframes slide {from {transform: translateX(0);} to {transform: translateX(-50%);}}
+@media (prefers-reduced-motion: reduce) {.band .track {animation: none;}}
+.land-foot {color: var(--ink2); font-size: 0.8rem; padding: 1.2rem 0 2rem 0;}
+</style>""", unsafe_allow_html=True)
+    st.markdown("<div class='topbar'><div class='brand'>Resilience Engine</div>"
+                "<div class='nav'><span>Know</span><span>Shock</span><span>Warn</span><span>Plan</span></div></div>",
+                unsafe_allow_html=True)
+    left, right = st.columns([1, 1.1], gap="large", vertical_alignment="center")
+    with left:
+        st.markdown("<div class='land'><div class='eyebrow'>Tangerine · Resilience Rewired</div>"
+                    "<div class='title'>Resilience<em>Engine.</em></div><div class='rule'></div>"
+                    "<div class='tag'>Know any customer, apply any shock, and see the plan, in seconds.</div></div>",
+                    unsafe_allow_html=True)
+        with st.form("land_search", border=False):
+            q = st.text_input("Account ID", placeholder="Search an account ID, e.g. 29010", label_visibility="collapsed")
+            c1, c2 = st.columns(2)
+            go = c1.form_submit_button("Open account  ↗", type="primary", width="stretch")
+            rnd = c2.form_submit_button("Random account", width="stretch")
+        if go:
+            q = q.strip()
+            if q.isdigit() and int(q) in id_set:
+                choose(q); st.rerun()
+            elif q:
+                near = [a for a in ids if str(a).startswith(q)][:8]
+                st.error(f"No account {q}." + (f" Close matches: {', '.join(map(str, near))}." if near else
+                                                f" IDs run from {ids[0]} to {ids[-1]}."))
+            else:
+                st.error("Type an account ID first, or press Random account.")
+        if rnd:
+            pick_random(); st.rerun()
+    with right:
+        demo = 29010
+        pd_ = load_profile(demo)
+        sv_ = run_survival(demo, astuple(E.Shock(income_mult=0.55, ei_months=6)))
+        st.altair_chart(V.hero_fan(sv_["fan"], pd_["B"]), width="stretch", theme=None)
+        st.markdown("<div style='color:var(--ink2);font-size:0.78rem;letter-spacing:0.08em'>Account 29010, laid off on EI: "
+                    "5,000 simulated futures from their own months. Dashed line: $0.</div>", unsafe_allow_html=True)
+    words = ["Know the customer", "Apply the shock", "Warn early", "Make a plan", "Build the cushion", "Then invest"]
+    run = "".join(f"<span>{w}</span><span><b>◆</b></span>" for w in words)
+    st.markdown(f"<div class='band'><div class='track'>{run}{run}{run}{run}</div></div>"
+                f"<div class='land-foot'>{len(ids):,} customers · judges' definitions, exact · early warning validated on a "
+                f"held out year</div>", unsafe_allow_html=True)
+
+
+if not st.session_state["started"]:
+    landing()
+    st.stop()
+
+st.sidebar.button("← Home", on_click=go_home, key="home_btn")
 st.sidebar.title("Resilience Engine")
 with st.sidebar:
     st.caption("Pick a customer, apply a twist, read the result at the top of the page. "

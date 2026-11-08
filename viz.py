@@ -253,3 +253,17 @@ def warning_signal(w: pd.DataFrame):
             title=alt.Title(title, anchor="start", fontSize=12, fontWeight="normal", color=INK)), 220)
     return (panel("buffer", "Lowest balance, in months of income", ".1f"),
             panel("spend_ratio", "Spending / income, last 3 months", ".2f"))
+
+
+def hero_fan(f: pd.DataFrame, start: float, height=440):
+    """Decorative landing visual: one real customer's simulated balance after a layoff, no axes."""
+    d = pd.DataFrame({"x": np.r_[0, f.month], "p05": np.r_[start, f.p05], "p95": np.r_[start, f.p95],
+                      "p25": np.r_[start, f.p25], "p75": np.r_[start, f.p75], "p50": np.r_[start, f.p50]})
+    x = alt.X("x:Q", axis=None, scale=alt.Scale(domain=[0, d.x.max()], nice=False))
+    y = alt.Y("p05:Q", axis=None)
+    o = alt.Chart(d).mark_area(color="#DCD3C2", interpolate="monotone").encode(x=x, y=y, y2="p95:Q")
+    i = alt.Chart(d).mark_area(color="#C3BCA6", interpolate="monotone").encode(x=x, y="p25:Q", y2="p75:Q")
+    m = alt.Chart(d).mark_line(color="#565A4B", strokeWidth=2.5, interpolate="monotone").encode(x=x, y="p50:Q")
+    z = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(color="#A85E40", strokeWidth=1.2, strokeDash=[4, 4]).encode(y="y:Q")
+    return (alt.layer(o, i, z, m).properties(height=height)
+            .configure(background="transparent").configure_view(stroke=None))
